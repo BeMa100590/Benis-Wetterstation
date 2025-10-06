@@ -41,23 +41,45 @@
   </main>
 
   <script>
-    // ====== CONFIG ======
+    // ====== CONFIG (Mehrere Channels, nur IST-Werte) ======
     const CONFIG = {
-      channelId: 3043993,
-      readKey: "5QKSO8HZ6BNPFTDE",
       refreshSec: 60,
       staleMinutes: 60, // ab wie vielen Minuten gelb markieren
-      fields: [
-        { n:1, title:"Temperatur Wohnzimmer", unit:"°C", digits:1, icon:"thermo" },
-        { n:2, title:"Luftfeuchte Wohnzimmer", unit:"%", digits:0, icon:"drop" },
-        { n:3, title:"Temperatur Außen Wiesloch", unit:"°C", digits:1, icon:"thermo" },
-        { n:4, title:"Luftfeuchte Außen Wiesloch", unit:"%", digits:0, icon:"drop" },
-        { n:5, title:"UV‑Index", unit:"", digits:1, icon:"sun" }
+      channels: [
+        {
+          id: 3043993,
+          readKey: "5QKSO8HZ6BNPFTDE",
+          fields: [
+            { n:1, title:"Temperatur Wohnzimmer", unit:"°C", digits:1, icon:"thermo" },
+            { n:2, title:"Luftfeuchte Wohnzimmer", unit:"%", digits:0, icon:"drop" },
+            { n:3, title:"Temperatur Außen Wiesloch", unit:"°C", digits:1, icon:"thermo" },
+            { n:4, title:"Luftfeuchte Außen Wiesloch", unit:"%", digits:0, icon:"drop" },
+            { n:5, title:"UV‑Index", unit:"", digits:1, icon:"sun" }
+          ]
+        },
+        {
+          id: 3094234,
+          readKey: "OZU6XCJ29SCQTLQT",
+          fields: [
+            { n:1, title:"Außentemperatur Oberderdingen", unit:"°C", digits:1, icon:"thermo" },
+            { n:2, title:"Außentemperatur Flehingen", unit:"°C", digits:1, icon:"thermo" },
+            { n:3, title:"Temperatur Büro Arbeit", unit:"°C", digits:1, icon:"thermo" }
+          ]
+        },
+        {
+          id: 3089969,
+          readKey: "G93FDQPXIJ75KSOR",
+          fields: [
+            { n:1, title:"Schwimmerbecken Filplebad", unit:"°C", digits:1, icon:"thermo" },
+            { n:2, title:"Kinderplanschbecken Filplebad", unit:"°C", digits:1, icon:"thermo" },
+            { n:3, title:"Wassertemperatur NaturErlebnisBad", unit:"°C", digits:1, icon:"thermo" }
+          ]
+        }
       ]
     };
 
     // ====== State ======
-    const STATE = { lastAt: {}, values: {} };
+    const STATE = { lastAt: {}, today: todayKey() };
 
     // ====== Helpers ======
     const $ = (q, el=document) => el.querySelector(q);
@@ -72,40 +94,39 @@
       }
     }
 
-    // ====== Min/Max – pro Tag (lokale Zeit) in localStorage ======
+    // ====== Min/Max – pro Tag in localStorage ======
     const STORAGE_PREFIX = 'benisMM';
     function todayKey(){ const d=new Date(); const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const da=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${da}`; }
-    function mmKey(fieldN){ return `${STORAGE_PREFIX}:${CONFIG.channelId}:f${fieldN}:${todayKey()}`; }
-    function readMM(n){ try{ const raw=localStorage.getItem(mmKey(n)); return raw? JSON.parse(raw) : null; } catch{ return null; } }
-    function writeMM(n, mm){ try{ localStorage.setItem(mmKey(n), JSON.stringify(mm)); } catch{} }
-    function updateMM(n, val){ if(!Number.isFinite(val)) return; const cur = readMM(n) || { min: val, max: val }; if (val < cur.min) cur.min = val; if (val > cur.max) cur.max = val; writeMM(n, cur); showMM(n); }
-    function showMM(n, digits){ const mm = readMM(n); const minEl = document.getElementById(`min-f${n}`); const maxEl = document.getElementById(`max-f${n}`); if(!minEl||!maxEl) return; if(mm){ minEl.textContent = fmt(mm.min, digits); maxEl.textContent = fmt(mm.max, digits); } else { minEl.textContent='–'; maxEl.textContent='–'; } }
+    function mmKey(channelId, fieldN){ return `${STORAGE_PREFIX}:${channelId}:f${fieldN}:${todayKey()}`; }
+    function readMM(channelId, n){ try{ const raw=localStorage.getItem(mmKey(channelId,n)); return raw? JSON.parse(raw) : null; } catch{ return null; } }
+    function writeMM(channelId, n, mm){ try{ localStorage.setItem(mmKey(channelId,n), JSON.stringify(mm)); } catch{} }
+    function updateMM(channelId, n, val){ if(!Number.isFinite(val)) return; const cur = readMM(channelId,n) || { min: val, max: val }; if (val < cur.min) cur.min = val; if (val > cur.max) cur.max = val; writeMM(channelId,n,cur); showMM(channelId,n); }
+    function showMM(channelId, n, digits){ const mm = readMM(channelId,n); const minEl = document.getElementById(`min-c${channelId}-f${n}`); const maxEl = document.getElementById(`max-c${channelId}-f${n}`); if(!minEl||!maxEl) return; if(mm){ minEl.textContent = fmt(mm.min, digits); maxEl.textContent = fmt(mm.max, digits); } else { minEl.textContent='–'; maxEl.textContent='–'; } }
 
     // ====== UI bauen ======
     const cardsEl = document.getElementById('cards');
-    function buildCard(field){
+    function buildCard(ch, field){
       const card = document.createElement('article');
       card.className='card';
-      card.id=`card-f${field.n}`;
+      card.id=`card-c${ch.id}-f${field.n}`;
       card.innerHTML = `
         <div class='row'>
           <div class='iconWrap'>${iconSVG(field.icon)}</div>
           <div style='flex:1;'>
             <p class='title'>${field.title}</p>
-            <div class='bigValue'><span id='val-f${field.n}'>–</span><span class='unit'> ${field.unit}</span></div>
-            <div class='mmRow'><span class='label'>Min</span> <span id='min-f${field.n}'>–</span> <span class='label'>• Max</span> <span id='max-f${field.n}'>–</span></div>
+            <div class='bigValue'><span id='val-c${ch.id}-f${field.n}'>–</span><span class='unit'> ${field.unit}</span></div>
+            <div class='mmRow'><span class='label'>Min</span> <span id='min-c${ch.id}-f${field.n}'>–</span> <span class='label'>• Max</span> <span id='max-c${ch.id}-f${field.n}'>–</span></div>
           </div>
         </div>`;
       cardsEl.appendChild(card);
-      // Bereits vorhandene Tages-Min/Max anzeigen
-      showMM(field.n, field.digits ?? 1);
+      showMM(ch.id, field.n, field.digits ?? 1);
     }
-    CONFIG.fields.forEach(buildCard);
+    CONFIG.channels.forEach(ch => ch.fields.forEach(f => buildCard(ch, f)));
 
-    // ====== Feldweise laden: /fields/{n}/last.json + Stale-Markierung ======
-    async function loadField(f){
-      const url = new URL(`https://api.thingspeak.com/channels/${CONFIG.channelId}/fields/${f.n}/last.json`);
-      if (CONFIG.readKey) url.searchParams.set('api_key', CONFIG.readKey);
+    // ====== Feld laden: /channels/{id}/fields/{n}/last.json ======
+    async function loadField(ch, f){
+      const url = new URL(`https://api.thingspeak.com/channels/${ch.id}/fields/${f.n}/last.json`);
+      if (ch.readKey) url.searchParams.set('api_key', ch.readKey);
       try{
         const res = await fetch(url.toString(), { cache:'no-store' });
         if(!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -113,7 +134,7 @@
 
         const createdAt = obj.created_at || null;
         const raw = obj[`field${f.n}`];
-        const card = document.getElementById(`card-f${f.n}`);
+        const card = document.getElementById(`card-c${ch.id}-f${f.n}`);
 
         // Stale-Färbung: gelb, wenn älter als CONFIG.staleMinutes
         if (createdAt) {
@@ -121,20 +142,19 @@
           if (ageMin > CONFIG.staleMinutes) card.classList.add('stale'); else card.classList.remove('stale');
         }
 
+        const stateKey = `${ch.id}-${f.n}`;
         // nur updaten, wenn neuer Zeitstempel als bisher
-        if (!STATE.lastAt[f.n] || createdAt !== STATE.lastAt[f.n]) {
+        if (!STATE.lastAt[stateKey] || createdAt !== STATE.lastAt[stateKey]) {
           const num = raw==null ? NaN : parseFloat(raw);
           const text = Number.isFinite(num) ? fmt(num, f.digits ?? 1) : (raw ?? '–');
-          document.getElementById(`val-f${f.n}`).textContent = text;
-          STATE.values[f.n] = Number.isFinite(num) ? num : STATE.values[f.n];
-          STATE.lastAt[f.n] = createdAt;
-          if (Number.isFinite(num)) updateMM(f.n, num); // Tages-Min/Max aktualisieren
+          document.getElementById(`val-c${ch.id}-f${f.n}`).textContent = text;
+          STATE.lastAt[stateKey] = createdAt;
+          if (Number.isFinite(num)) updateMM(ch.id, f.n, num);
         }
 
         document.getElementById('errorGlobal').style.display='none';
         return createdAt;
       }catch(e){
-        // Bei Fehlern Anzeige nicht überschreiben
         const eg=document.getElementById('errorGlobal');
         eg.textContent=`Konnte Daten nicht laden: ${e.message}`;
         eg.style.display='block';
@@ -143,12 +163,21 @@
     }
 
     async function loadAll(){
-      const times = await Promise.all(CONFIG.fields.map(loadField));
-      const valid = times.filter(Boolean).map(t=>new Date(t).getTime());
-      if (valid.length){
-        const maxTs = Math.max(...valid);
-        const iso = new Date(maxTs).toISOString();
-        document.getElementById('lastUpdate').textContent = `Letztes Update: ${labelFromISO(iso)}`;
+      // Tageswechsel erkennen: Anzeige der Min/Max leeren
+      const tk = todayKey();
+      if (tk !== STATE.today) {
+        STATE.today = tk;
+        // Alle Min/Max-Anzeigen auf heutigen Speicherstand setzen (i.d.R. "–")
+        CONFIG.channels.forEach(ch => ch.fields.forEach(f => showMM(ch.id, f.n, f.digits ?? 1)));
+      }
+
+      const timeMatrix = await Promise.all(
+        CONFIG.channels.map(ch => Promise.all(ch.fields.map(f => loadField(ch,f))))
+      );
+      const times = timeMatrix.flat().filter(Boolean).map(t => new Date(t).getTime());
+      if (times.length) {
+        const maxTs = Math.max(...times);
+        document.getElementById('lastUpdate').textContent = `Letztes Update: ${labelFromISO(new Date(maxTs).toISOString())}`;
       }
     }
 
