@@ -7,31 +7,107 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <style>
-    :root {
-      --bg:#0f172a; --card:#111827; --fg:#e5e7eb; --muted:#93a4b8; --accent:#60a5fa;
-      --maxw: 480px; /* angenehm für Hochkant */
-    }
-    html,body { height:100%; }
-    body {
-      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      background: var(--bg); color: var(--fg);
-      -webkit-text-size-adjust: 100%;
-      padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom);
-    }
-    header {
-      position: sticky; top: 0; z-index: 10; backdrop-filter: blur(8px);
-      background: rgba(15,23,42,.7);
-      border-bottom: 1px solid rgba(148,163,184,.2);
-      padding: 10px 8px;
-      display:flex; justify-content:space-between; align-items:center; gap:10px;
-    }
-    h1 { margin:0; font-size: clamp(20px, 4.8vw, 26px); }
-    #lastUpdate { color: var(--muted); font-size: 12px; }
+    :root { --bg:#0f172a; --card:#111827; --fg:#e5e7eb; --muted:#93a4b8; --maxw:480px; }
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--fg);-webkit-text-size-adjust:100%;padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom)}
+    header{position:sticky;top:0;z-index:10;backdrop-filter:blur(8px);background:rgba(15,23,42,.7);border-bottom:1px solid rgba(148,163,184,.2);padding:10px 8px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+    h1{margin:0;font-size:clamp(20px,4.8vw,26px)}
+    #lastUpdate{color:var(--muted);font-size:12px}
+    main{margin:12px auto 40px;max-width:var(--maxw)}
+    .grid{display:grid;gap:12px}
+    .card{background:var(--card);border:1px solid rgba(148,163,184,.18);border-radius:16px;padding:14px;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+    .row{display:flex;align-items:center;gap:12px}
+    .iconWrap{width:48px;height:48px;display:grid;place-items:center;flex-shrink:0;border-radius:14px;border:1px solid rgba(148,163,184,.25);background:radial-gradient(500px 200px at -10% -50%,rgba(96,165,250,.20),transparent),#0b1220}
+    .iconWrap svg{width:28px;height:28px;color:var(--fg)}
+    .title{font-size:16px;color:var(--muted);margin:0}
+    .bigValue{font-size:clamp(40px,10vw,56px);font-weight:800;line-height:1.05;margin:2px 0 0}
+    .unit{font-size:18px;color:var(--muted);margin-left:6px;font-weight:600}
+    .error{color:#fecaca;font-size:13px;margin-top:8px;display:none}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Benis Wetterstation</h1>
+    <div id="lastUpdate">Letztes Update: –</div>
+  </header>
 
-    main { margin: 12px auto 40px; max-width: var(--maxw); }
+  <main>
+    <section id="cards" class="grid"></section>
+    <div id="errorGlobal" class="error" style="display:none;">Konnte Daten nicht laden.</div>
+  </main>
 
-    .controls { display:flex; gap:10px; align-items:center; overflow:auto; padding:8px 2px; }
-    .btn {
-      font-size:16px; /* verhindert iPhone-Autozoom */
-      padding:12px 14px; border-radius:12px;
-      border:1px solid rgba(148,163,
+  <script>
+    // ====== CONFIG: Nur IST-Werte, keine Trends/Keine Punkte-Einstellung ======
+    const CONFIG = {
+      channelId: 3043993,
+      readKey: "5QKSO8HZ6BNPFTDE",
+      refreshSec: 60,
+      fields: [
+        { n:1, title:"Temperatur Wohnzimmer", unit:"°C", digits:1, icon:"thermo" },
+        { n:2, title:"Luftfeuchte Wohnzimmer", unit:"%", digits:0, icon:"drop" },
+        { n:3, title:"Temperatur Außen Wiesloch", unit:"°C", digits:1, icon:"thermo" },
+        { n:4, title:"Luftfeuchte Außen Wiesloch", unit:"%", digits:0, icon:"drop" },
+        { n:5, title:"UV‑Index", unit:"", digits:1, icon:"sun" }
+      ]
+    };
+
+    // ====== Helpers ======
+    const $ = (q, el=document) => el.querySelector(q);
+    function fmt(n, digits=1){ const x=Number(n); return Number.isFinite(x)? x.toLocaleString("de-DE",{maximumFractionDigits:digits,minimumFractionDigits:digits}) : "–"; }
+    function labelFromISO(iso){ if(!iso) return "–"; const d=new Date(iso); const dd=String(d.getDate()).padStart(2,"0"); const mm=String(d.getMonth()+1).padStart(2,"0"); const hh=String(d.getHours()).padStart(2,"0"); const mi=String(d.getMinutes()).padStart(2,"0"); return `${dd}.${mm} ${hh}:${mi}`; }
+    function iconSVG(name){
+      switch(name){
+        case 'thermo': return `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0Z'/><path d='M10 9h4'/></svg>`;
+        case 'drop': return `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2s6 6 6 10a6 6 0 0 1-12 0C6 8 12 2 12 2Z'/><path d='M12 13a2 2 0 0 1-2-2'/></svg>`;
+        case 'sun': return `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='4'/><path d='M12 2v2m0 16v2m10-10h-2M4 12H2m15.5-6.5-1.4 1.4M8 17.9l-1.4 1.4m0-13.8L8 6.9m8.1 10.1 1.4 1.4'/></svg>`;
+        default: return `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7'><circle cx='12' cy='12' r='9'/></svg>`;
+      }
+    }
+
+    // ====== UI bauen (nur Kacheln mit IST-Wert) ======
+    const cardsEl = document.getElementById('cards');
+    function buildCard(field){
+      const card = document.createElement('article');
+      card.className='card';
+      card.id=`card-f${field.n}`;
+      card.innerHTML = `
+        <div class='row'>
+          <div class='iconWrap'>${iconSVG(field.icon)}</div>
+          <div style='flex:1;'>
+            <p class='title'>${field.title}</p>
+            <div class='bigValue'><span id='val-f${field.n}'>–</span><span class='unit'> ${field.unit}</span></div>
+          </div>
+        </div>`;
+      cardsEl.appendChild(card);
+    }
+    CONFIG.fields.forEach(buildCard);
+
+    // ====== Daten laden: nur letzter Messpunkt ======
+    async function loadLast(){
+      const url = new URL(`https://api.thingspeak.com/channels/${CONFIG.channelId}/feeds/last.json`);
+      if (CONFIG.readKey) url.searchParams.set('api_key', CONFIG.readKey);
+      try{
+        const res = await fetch(url.toString(), { cache:'no-store' });
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const last = await res.json();
+
+        document.getElementById('lastUpdate').textContent = `Letztes Update: ${labelFromISO(last.created_at)}`;
+        for(const f of CONFIG.fields){
+          const raw = last[`field${f.n}`];
+          const val = raw==null ? null : parseFloat(raw);
+          document.getElementById(`val-f${f.n}`).textContent = Number.isFinite(val) ? fmt(val, f.digits??1) : (raw ?? '–');
+        }
+        document.getElementById('errorGlobal').style.display='none';
+      }catch(e){
+        const eg=document.getElementById('errorGlobal');
+        eg.textContent=`Konnte Daten nicht laden: ${e.message}`;
+        eg.style.display='block';
+      }
+    }
+
+    // Initial laden + Auto-Refresh (kein Button, keine Trendkurven)
+    loadLast();
+    setInterval(loadLast, CONFIG.refreshSec*1000);
+  </script>
+</body>
+</html>
