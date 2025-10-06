@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <style>
-    :root { --bg:#0f172a; --card:#111827; --fg:#e5e7eb; --muted:#93a4b8; --maxw:480px; }
+    :root { --bg:#0f172a; --card:#111827; --fg:#e5e7eb; --muted:#93a4b8; --maxw:480px; --stale:#facc15; }
     html,body{height:100%}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--fg);-webkit-text-size-adjust:100%;padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom)}
     header{position:sticky;top:0;z-index:10;backdrop-filter:blur(8px);background:rgba(15,23,42,.7);border-bottom:1px solid rgba(148,163,184,.2);padding:10px 8px;display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -15,13 +15,17 @@
     #lastUpdate{color:var(--muted);font-size:12px}
     main{margin:12px auto 40px;max-width:var(--maxw)}
     .grid{display:grid;gap:12px}
-    .card{background:var(--card);border:1px solid rgba(148,163,184,.18);border-radius:16px;padding:14px;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+    .card{background:var(--card);border:1px solid rgba(148,163,184,.18);border-radius:16px;padding:14px;box-shadow:0 8px 20px rgba(0,0,0,.25);transition:border-color .2s ease}
+    .card.stale{border-color:rgba(250,204,21,.6)}
     .row{display:flex;align-items:center;gap:12px}
     .iconWrap{width:48px;height:48px;display:grid;place-items:center;flex-shrink:0;border-radius:14px;border:1px solid rgba(148,163,184,.25);background:radial-gradient(500px 200px at -10% -50%,rgba(96,165,250,.20),transparent),#0b1220}
     .iconWrap svg{width:28px;height:28px;color:var(--fg)}
     .title{font-size:16px;color:var(--muted);margin:0}
-    .bigValue{font-size:clamp(40px,10vw,56px);font-weight:800;line-height:1.05;margin:2px 0 0}
+    .bigValue{font-size:clamp(40px,10vw,56px);font-weight:800;line-height:1.05;margin:2px 0 2px}
+    .card.stale .bigValue{color:var(--stale)}
     .unit{font-size:18px;color:var(--muted);margin-left:6px;font-weight:600}
+    .mmRow{display:flex;gap:10px;align-items:center;font-size:14px;color:var(--muted)}
+    .mmRow .label{opacity:.9}
     .error{color:#fecaca;font-size:13px;margin-top:8px;display:none}
   </style>
 </head>
@@ -37,11 +41,12 @@
   </main>
 
   <script>
-    // ====== CONFIG: Nur IST-Werte, keine Trends ======
+    // ====== CONFIG ======
     const CONFIG = {
       channelId: 3043993,
       readKey: "5QKSO8HZ6BNPFTDE",
       refreshSec: 60,
+      staleMinutes: 60, // ab wie vielen Minuten gelb markieren
       fields: [
         { n:1, title:"Temperatur Wohnzimmer", unit:"°C", digits:1, icon:"thermo" },
         { n:2, title:"Luftfeuchte Wohnzimmer", unit:"%", digits:0, icon:"drop" },
@@ -51,8 +56,8 @@
       ]
     };
 
-    // ====== State: letzte gültige Werte puffern ======
-    const STATE = { lastAt: null, values: {} };
+    // ====== State ======
+    const STATE = { lastAt: {}, values: {} };
 
     // ====== Helpers ======
     const $ = (q, el=document) => el.querySelector(q);
@@ -67,6 +72,15 @@
       }
     }
 
+    // ====== Min/Max – pro Tag (lokale Zeit) in localStorage ======
+    const STORAGE_PREFIX = 'benisMM';
+    function todayKey(){ const d=new Date(); const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const da=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${da}`; }
+    function mmKey(fieldN){ return `${STORAGE_PREFIX}:${CONFIG.channelId}:f${fieldN}:${todayKey()}`; }
+    function readMM(n){ try{ const raw=localStorage.getItem(mmKey(n)); return raw? JSON.parse(raw) : null; } catch{ return null; } }
+    function writeMM(n, mm){ try{ localStorage.setItem(mmKey(n), JSON.stringify(mm)); } catch{} }
+    function updateMM(n, val){ if(!Number.isFinite(val)) return; const cur = readMM(n) || { min: val, max: val }; if (val < cur.min) cur.min = val; if (val > cur.max) cur.max = val; writeMM(n, cur); showMM(n); }
+    function showMM(n, digits){ const mm = readMM(n); const minEl = document.getElementById(`min-f${n}`); const maxEl = document.getElementById(`max-f${n}`); if(!minEl||!maxEl) return; if(mm){ minEl.textContent = fmt(mm.min, digits); maxEl.textContent = fmt(mm.max, digits); } else { minEl.textContent='–'; maxEl.textContent='–'; } }
+
     // ====== UI bauen ======
     const cardsEl = document.getElementById('cards');
     function buildCard(field){
@@ -79,62 +93,68 @@
           <div style='flex:1;'>
             <p class='title'>${field.title}</p>
             <div class='bigValue'><span id='val-f${field.n}'>–</span><span class='unit'> ${field.unit}</span></div>
+            <div class='mmRow'><span class='label'>Min</span> <span id='min-f${field.n}'>–</span> <span class='label'>• Max</span> <span id='max-f${field.n}'>–</span></div>
           </div>
         </div>`;
       cardsEl.appendChild(card);
+      // Bereits vorhandene Tages-Min/Max anzeigen
+      showMM(field.n, field.digits ?? 1);
     }
     CONFIG.fields.forEach(buildCard);
 
-    // ====== Daten laden: nur letzter Messpunkt, alte Werte behalten ======
-    async function loadLast(){
-      const url = new URL(`https://api.thingspeak.com/channels/${CONFIG.channelId}/feeds/last.json`);
+    // ====== Feldweise laden: /fields/{n}/last.json + Stale-Markierung ======
+    async function loadField(f){
+      const url = new URL(`https://api.thingspeak.com/channels/${CONFIG.channelId}/fields/${f.n}/last.json`);
       if (CONFIG.readKey) url.searchParams.set('api_key', CONFIG.readKey);
       try{
         const res = await fetch(url.toString(), { cache:'no-store' });
         if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        const last = await res.json();
+        const obj = await res.json();
 
-        // Wenn keine neue Messung (gleiche created_at), nichts ändern
-        const createdAt = last.created_at || null;
-        if (STATE.lastAt && createdAt === STATE.lastAt) {
-          // nur Header-Zeit auffrischen (gleich bleibend anzeigen)
-          document.getElementById('lastUpdate').textContent = `Letztes Update: ${labelFromISO(createdAt)}`;
-          return;
+        const createdAt = obj.created_at || null;
+        const raw = obj[`field${f.n}`];
+        const card = document.getElementById(`card-f${f.n}`);
+
+        // Stale-Färbung: gelb, wenn älter als CONFIG.staleMinutes
+        if (createdAt) {
+          const ageMin = (Date.now() - new Date(createdAt).getTime())/60000;
+          if (ageMin > CONFIG.staleMinutes) card.classList.add('stale'); else card.classList.remove('stale');
         }
 
-        // Zeit setzen
-        document.getElementById('lastUpdate').textContent = `Letztes Update: ${labelFromISO(createdAt)}`;
-
-        // Felder aktualisieren – nur wenn gültig, sonst alten Wert lassen
-        for(const f of CONFIG.fields){
-          const raw = last[`field${f.n}`];
+        // nur updaten, wenn neuer Zeitstempel als bisher
+        if (!STATE.lastAt[f.n] || createdAt !== STATE.lastAt[f.n]) {
           const num = raw==null ? NaN : parseFloat(raw);
-          if (Number.isFinite(num)) {
-            STATE.values[f.n] = num; // neuen gültigen Wert merken
-            document.getElementById(`val-f${f.n}`).textContent = fmt(num, f.digits??1);
-          } else if (typeof raw === 'string' && raw.trim() !== '') {
-            // falls nicht numerisch, aber String vorhanden → anzeigen
-            STATE.values[f.n] = raw;
-            document.getElementById(`val-f${f.n}`).textContent = raw;
-          } else {
-            // kein gültiger neuer Wert → Anzeige NICHT überschreiben
-            // (alter STATE/DOM bleibt bestehen)
-          }
+          const text = Number.isFinite(num) ? fmt(num, f.digits ?? 1) : (raw ?? '–');
+          document.getElementById(`val-f${f.n}`).textContent = text;
+          STATE.values[f.n] = Number.isFinite(num) ? num : STATE.values[f.n];
+          STATE.lastAt[f.n] = createdAt;
+          if (Number.isFinite(num)) updateMM(f.n, num); // Tages-Min/Max aktualisieren
         }
 
-        STATE.lastAt = createdAt;
         document.getElementById('errorGlobal').style.display='none';
+        return createdAt;
       }catch(e){
-        // Bei Fehlern NICHT auf "–" setzen — Anzeige bleibt stabil
+        // Bei Fehlern Anzeige nicht überschreiben
         const eg=document.getElementById('errorGlobal');
         eg.textContent=`Konnte Daten nicht laden: ${e.message}`;
         eg.style.display='block';
+        return null;
       }
     }
 
-    // Initial laden + Auto-Refresh
-    loadLast();
-    setInterval(loadLast, CONFIG.refreshSec*1000);
+    async function loadAll(){
+      const times = await Promise.all(CONFIG.fields.map(loadField));
+      const valid = times.filter(Boolean).map(t=>new Date(t).getTime());
+      if (valid.length){
+        const maxTs = Math.max(...valid);
+        const iso = new Date(maxTs).toISOString();
+        document.getElementById('lastUpdate').textContent = `Letztes Update: ${labelFromISO(iso)}`;
+      }
+    }
+
+    // ====== Initial laden + Auto-Refresh ======
+    loadAll();
+    setInterval(loadAll, CONFIG.refreshSec*1000);
   </script>
 </body>
 </html>
