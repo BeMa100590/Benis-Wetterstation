@@ -1,276 +1,225 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <title>Benis Wetterstation</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Haus-Dashboard</title>
+  <!-- Tailwind via CDN (optional). Entferne die nächste Zeile, wenn du kein CDN willst. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="description" content="Visualisiertes Haus-Dashboard mit UV, Regen, Temperatur und Luftfeuchte, gespeist von ThingSpeak." />
   <style>
-    :root { --bg:#0f172a; --card:#111827; --fg:#e5e7eb; --muted:#93a4b8; --maxw:480px; --stale:#facc15; }
-    html,body{height:100%}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--fg);-webkit-text-size-adjust:100%;padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom)}
-    header{position:sticky;top:0;z-index:10;backdrop-filter:blur(8px);background:rgba(15,23,42,.7);border-bottom:1px solid rgba(148,163,184,.2);padding:10px 8px;display:flex;justify-content:space-between;align-items:center;gap:10px}
-    h1{margin:0;font-size:clamp(20px,4.8vw,26px)}
-    #lastUpdate{color:var(--muted);font-size:12px}
-    main{margin:12px auto 40px;max-width:var(--maxw)}
-    .grid{display:grid;gap:12px}
-    .card{background:var(--card);border:1px solid rgba(148,163,184,.18);border-radius:16px;padding:14px;box-shadow:0 8px 20px rgba(0,0,0,.25);transition:border-color .2s ease}
-    .card.stale{border-color:rgba(250,204,21,.6)}
-    .row{display:flex;align-items:center;gap:12px}
-    .iconWrap{width:48px;height:48px;display:grid;place-items:center;flex-shrink:0;border-radius:14px;border:1px solid rgba(148,163,184,.25);background:radial-gradient(500px 200px at -10% -50%,rgba(96,165,250,.20),transparent),#0b1220}
-    .iconWrap svg{width:28px;height:28px;color:var(--fg)}
-    .title{font-size:16px;color:var(--muted);margin:0}
-    .bigValue{font-size:clamp(40px,10vw,56px);font-weight:800;line-height:1.05;margin:2px 0 2px}
-    .card.stale .bigValue{color:var(--stale)}
-    .unit{font-size:18px;color:var(--muted);margin-left:6px;font-weight:600}
-    .mmRow{display:flex;gap:10px;align-items:center;font-size:14px;color:var(--muted)}
-    .mmRow .label{opacity:.9}
-    .error{color:#fecaca;font-size:13px;margin-top:8px;display:none}
-
-    /* Modal für Trendkurven */
-    .modal{position:fixed;inset:0;display:none;background:rgba(0,0,0,.55);z-index:50}
-    .modal.open{display:block}
-    .modal .sheet{position:absolute;inset:env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;background:var(--card);border-top:1px solid rgba(148,163,184,.2);border-left:0;border-right:0;border-bottom:0;display:flex;flex-direction:column}
-    .sheetHeader{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.18)}
-    .backBtn{appearance:none;border:1px solid rgba(148,163,184,.25);background:#0b1220;color:var(--fg);border-radius:12px;padding:10px 12px;font-size:16px;min-height:44px}
-    .sheetTitle{flex:1;font-weight:700}
-    .rangeSel{appearance:none;border:1px solid rgba(148,163,184,.25);background:#0b1220;color:var(--fg);border-radius:12px;padding:10px 12px;font-size:16px;min-height:44px}
-    .chartWrap{flex:1;padding:10px 12px}
-    canvas#trendCanvas{width:100% !important;height:100% !important;min-height:320px}
-    .sheetFooter{padding:10px 12px;color:var(--muted);font-size:12px}
+    /* Kleines Polishing, falls Tailwind entfernt wird */
+    .metric { font-variant-numeric: tabular-nums; }
+    .blink { animation: blink 1.2s linear infinite; }
+    @keyframes blink { 50% { opacity: .4 } }
   </style>
 </head>
-<body>
-  <header>
-    <h1>Benis Wetterstation</h1>
-    <div id="lastUpdate">Letztes Update: –</div>
-  </header>
+<body class="min-h-screen bg-sky-50 text-slate-800 antialiased">
+  <main class="max-w-5xl mx-auto p-4 md:p-8">
+    <header class="mb-6 flex items-center justify-between gap-4">
+      <h1 class="text-2xl md:text-3xl font-bold">Mein Haus-Dashboard</h1>
+      <button id="refreshBtn" class="px-4 py-2 rounded-2xl bg-sky-600 text-white hover:bg-sky-700">Aktualisieren</button>
+    </header>
 
-  <main>
-    <section id="cards" class="grid"></section>
-    <div id="errorGlobal" class="error" style="display:none;">Konnte Daten nicht laden.</div>
+    <!--
+      🔧 KONFIGURATION
+      Trage hier deine ThingSpeak-Infos ein und mappe Felder -> Datenbedeutung.
+      - CHANNEL_ID:      numerische ID deines Channels
+      - READ_API_KEY:    optional, falls Channel privat ist
+      - FIELD_MAPPING:   ordne deine Felder zu (z.B. field1 = Temperatur).
+    -->
+    <script>
+      const CONFIG = {
+        CHANNEL_ID: "YOUR_CHANNEL_ID_HERE",
+        READ_API_KEY: "YOUR_READ_API_KEY_HERE", // leer lassen, wenn öffentlich
+        FIELD_MAPPING: {
+          temperatureC: "field1", // Temperatur in °C
+          humidityPct:  "field2", // Luftfeuchte in %
+          uvIndex:      "field3", // UV-Index (z.B. 0..11+)
+          rainFlag:     "field4", // 0/1 oder true/false
+        },
+        // Optionales Tuning
+        NUM_RESULTS: 1,              // wie viele letzte Messungen holen
+        DECIMALS_TEMP: 1,
+        DECIMALS_HUM: 0,
+      };
+    </script>
+
+    <!--
+      🏠 Illustration als skalierbare SVG
+      - Wir arbeiten mit IDs, damit JS gezielt Text/Icons austauschen kann.
+    -->
+    <section class="bg-white rounded-3xl shadow p-4 md:p-6">
+      <div class="grid md:grid-cols-2 gap-6 items-center">
+        <!-- SVG-Bild -->
+        <div class="w-full">
+          <svg id="houseScene" viewBox="0 0 800 500" class="w-full h-auto">
+            <!-- Himmel -->
+            <defs>
+              <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#cfeffd" />
+                <stop offset="100%" stop-color="#eaf6ff" />
+              </linearGradient>
+              <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="3" stdDeviation="6" flood-opacity="0.2"/>
+              </filter>
+            </defs>
+            <rect x="0" y="0" width="800" height="500" fill="url(#skyGrad)"/>
+
+            <!-- Sonne (oben links) -->
+            <g id="sunGroup" transform="translate(110,110)" filter="url(#shadow)">
+              <circle r="50" fill="#ffd166" />
+              <text id="uvValue" x="0" y="6" text-anchor="middle" font-size="20" font-weight="700" fill="#7c4a00">UV – --</text>
+            </g>
+
+            <!-- Wolke (oben rechts) -->
+            <g id="cloudGroup" transform="translate(650,120)" filter="url(#shadow)">
+              <ellipse rx="60" ry="32" cx="0" cy="10" fill="#ffffff"/>
+              <ellipse rx="45" ry="28" cx="-45" cy="20" fill="#ffffff"/>
+              <ellipse rx="45" ry="28" cx="45" cy="20" fill="#ffffff"/>
+              <text id="rainValue" x="0" y="58" text-anchor="middle" font-size="18" font-weight="600" fill="#334155">Regen: --</text>
+            </g>
+
+            <!-- Wiese -->
+            <rect x="0" y="410" width="800" height="90" fill="#bbf7d0"/>
+
+            <!-- Hauskörper -->
+            <g id="houseGroup" transform="translate(300,240)" filter="url(#shadow)">
+              <rect x="-120" y="0" width="240" height="140" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="2"/>
+              <polygon points="-140,0 0,-90 140,0" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="2"/>
+
+              <!-- Fenster links (Temp) -->
+              <g id="windowTemp" transform="translate(-70,35)">
+                <rect width="80" height="60" fill="#ffffff" stroke="#cbd5e1"/>
+                <text id="tempValue" x="40" y="35" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
+                <text x="40" y="55" text-anchor="middle" font-size="12" fill="#475569">Temperatur</text>
+              </g>
+
+              <!-- Fenster rechts (Feuchte) -->
+              <g id="windowHum" transform="translate( -10,35)">
+                <rect width="80" height="60" fill="#ffffff" stroke="#cbd5e1"/>
+                <text id="humValue" x="40" y="35" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- %</text>
+                <text x="40" y="55" text-anchor="middle" font-size="12" fill="#475569">Luftfeuchte</text>
+              </g>
+
+              <!-- Tür (Zeit) -->
+              <g id="door" transform="translate(70,30)">
+                <rect width="50" height="110" fill="#eab308" stroke="#a16207"/>
+                <circle cx="42" cy="58" r="3" fill="#7c2d12"/>
+              </g>
+            </g>
+
+            <!-- Zeitstempel unten -->
+            <text id="timestamp" x="400" y="480" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: --</text>
+          </svg>
+        </div>
+
+        <!-- Werte + Status -->
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="rounded-2xl border border-slate-200 p-4 bg-white">
+              <div class="text-sm text-slate-500">Temperatur</div>
+              <div id="tempCard" class="metric text-3xl font-bold">-- °C</div>
+            </div>
+            <div class="rounded-2xl border border-slate-200 p-4 bg-white">
+              <div class="text-sm text-slate-500">Luftfeuchte</div>
+              <div id="humCard" class="metric text-3xl font-bold">-- %</div>
+            </div>
+            <div class="rounded-2xl border border-slate-200 p-4 bg-white">
+              <div class="text-sm text-slate-500">UV-Index</div>
+              <div id="uvCard" class="metric text-3xl font-bold">--</div>
+            </div>
+            <div class="rounded-2xl border border-slate-200 p-4 bg-white">
+              <div class="text-sm text-slate-500">Regen</div>
+              <div id="rainCard" class="metric text-3xl font-bold">--</div>
+            </div>
+          </div>
+
+          <div class="text-sm text-slate-500">Quelle: ThingSpeak</div>
+          <div id="status" class="text-sm"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="mt-8 text-xs text-slate-500">
+      Tipp: Das SVG ist frei skalierbar. Du kannst Gruppen/IDs umbenennen oder weitere Elemente einbauen (z.B. Windfahne, Schneeflocke, etc.).
+    </footer>
   </main>
 
-  <!-- Modal: Trendkurve -->
-  <div id="trendModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="trendTitle">
-    <div class="sheet">
-      <div class="sheetHeader">
-        <button id="backBtn" class="backBtn">← Zurück</button>
-        <div id="trendTitle" class="sheetTitle">Trend</div>
-        <select id="rangeSel" class="rangeSel">
-          <option value="1">1 Tag</option>
-          <option value="7" selected>7 Tage</option>
-          <option value="30">30 Tage</option>
-          <option value="90">90 Tage</option>
-          <option value="365">1 Jahr</option>
-        </select>
-      </div>
-      <div class="chartWrap">
-        <canvas id="trendCanvas"></canvas>
-      </div>
-      <div class="sheetFooter" id="trendMeta">–</div>
-    </div>
-  </div>
-
   <script>
-    // ====== CONFIG (Mehrere Channels, nur IST-Werte; Trend auf Klick) ======
-    const CONFIG = {
-      refreshSec: 60,
-      staleMinutes: 60, // ab wie vielen Minuten gelb markieren
-      // Für Trendbegrenzung (Downsampling): max Punkte je Range
-      maxPointsByDays: { 1: 800, 7: 900, 30: 1000, 90: 1200, 365: 1500 },
-      channels: [
-        { id: 3043993, readKey: "5QKSO8HZ6BNPFTDE", fields: [
-          { n:1, title:"Temperatur Wohnzimmer", unit:"°C", digits:1, icon:"thermo" },
-          { n:2, title:"Luftfeuchte Wohnzimmer", unit:"%", digits:0, icon:"drop" },
-          { n:3, title:"Temperatur Außen Wiesloch", unit:"°C", digits:1, icon:"thermo" },
-          { n:4, title:"Luftfeuchte Außen Wiesloch", unit:"%", digits:0, icon:"drop" },
-          { n:5, title:"UV‑Index", unit:"", digits:1, icon:"sun" }
-        ]},
-        { id: 3094234, readKey: "OZU6XCJ29SCQTLQT", fields: [
-          { n:1, title:"Außentemperatur Oberderdingen", unit:"°C", digits:1, icon:"thermo" },
-          { n:2, title:"Außentemperatur Flehingen", unit:"°C", digits:1, icon:"thermo" },
-          { n:3, title:"Temperatur Büro Arbeit", unit:"°C", digits:1, icon:"thermo" }
-        ]},
-        { id: 3089969, readKey: "G93FDQPXIJ75KSOR", fields: [
-          { n:1, title:"Schwimmerbecken Filplebad", unit:"°C", digits:1, icon:"thermo" },
-          { n:2, title:"Kinderplanschbecken Filplebad", unit:"°C", digits:1, icon:"thermo" },
-          { n:3, title:"Wassertemperatur NaturErlebnisBad", unit:"°C", digits:1, icon:"thermo" }
-        ]}
-      ]
-    };
-
-    // ====== State ======
-    const STATE = { lastAt: {}, today: todayKey(), trend: { ch:null, f:null, chart:null } };
-
-    // ====== Helpers ======
-    const $ = (q, el=document) => el.querySelector(q);
-    function fmt(n, digits=1){ const x=Number(n); return Number.isFinite(x)? x.toLocaleString("de-DE",{maximumFractionDigits:digits,minimumFractionDigits:digits}) : "–"; }
-    function labelFromISO(iso){ if(!iso) return "–"; const d=new Date(iso); const dd=String(d.getDate()).padStart(2,"0"); const mm=String(d.getMonth()+1).padStart(2,"0"); const yy=d.getFullYear(); const hh=String(d.getHours()).padStart(2,"0"); const mi=String(d.getMinutes()).padStart(2,"0"); return `${dd}.${mm}.${yy} ${hh}:${mi}`; }
-    function iconSVG(name){
-      switch(name){
-        case 'thermo': return `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M14 14.76V5a 2 2 0 0 0-4 0v9.76a 4 4 0 1 0 4 0Z'/><path d='M10 9h4'/></svg>`;
-        case 'drop': return `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2s6 6 6 10a 6 6 0 0 1-12 0C6 8 12 2 12 2Z'/><path d='M12 13a 2 2 0 0 1-2-2'/></svg>`;
-        case 'sun': return `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='4'/><path d='M12 2v2m0 16v2m10-10h-2M4 12H2m15.5-6.5-1.4 1.4M8 17.9l-1.4 1.4m0-13.8L8 6.9m8.1 10.1 1.4 1.4'/></svg>`;
-        default: return `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7'><circle cx='12' cy='12' r='9'/></svg>`;
+    async function fetchFromThingSpeak() {
+      const base = `https://api.thingspeak.com/channels/${CONFIG.CHANNEL_ID}/feeds.json`;
+      const params = new URLSearchParams({ results: String(CONFIG.NUM_RESULTS) });
+      if (CONFIG.READ_API_KEY && CONFIG.READ_API_KEY !== "YOUR_READ_API_KEY_HERE") {
+        params.set("api_key", CONFIG.READ_API_KEY);
       }
-    }
-
-    // ====== Min/Max – pro Tag in localStorage ======
-    const STORAGE_PREFIX = 'benisMM';
-    function todayKey(){ const d=new Date(); const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const da=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${da}`; }
-    function mmKey(channelId, fieldN){ return `${STORAGE_PREFIX}:${channelId}:f${fieldN}:${todayKey()}`; }
-    function readMM(channelId, n){ try{ const raw=localStorage.getItem(mmKey(channelId,n)); return raw? JSON.parse(raw) : null; } catch{ return null; } }
-    function writeMM(channelId, n, mm){ try{ localStorage.setItem(mmKey(channelId,n), JSON.stringify(mm)); } catch{} }
-    function updateMM(channelId, n, val){ if(!Number.isFinite(val)) return; const cur = readMM(channelId,n) || { min: val, max: val }; if (val < cur.min) cur.min = val; if (val > cur.max) cur.max = val; writeMM(channelId,n,cur); showMM(channelId,n); }
-    function showMM(channelId, n, digits){ const mm = readMM(channelId,n); const minEl = document.getElementById(`min-c${channelId}-f${n}`); const maxEl = document.getElementById(`max-c${channelId}-f${n}`); if(!minEl||!maxEl) return; if(mm){ minEl.textContent = fmt(mm.min, digits); maxEl.textContent = fmt(mm.max, digits); } else { minEl.textContent='–'; maxEl.textContent='–'; } }
-
-    // ====== UI bauen ======
-    const cardsEl = document.getElementById('cards');
-    function buildCard(ch, field){
-      const card = document.createElement('article');
-      card.className='card';
-      card.id=`card-c${ch.id}-f${field.n}`;
-      card.innerHTML = `
-        <div class='row'>
-          <div class='iconWrap'>${iconSVG(field.icon)}</div>
-          <div style='flex:1;'>
-            <p class='title'>${field.title}</p>
-            <div class='bigValue'><span id='val-c${ch.id}-f${field.n}'>–</span><span class='unit'> ${field.unit}</span></div>
-            <div class='mmRow'><span class='label'>Min</span> <span id='min-c${ch.id}-f${field.n}'>–</span> <span class='label'>• Max</span> <span id='max-c${ch.id}-f${field.n}'>–</span></div>
-          </div>
-        </div>`;
-      // Klick öffnet Trend
-      card.addEventListener('click', () => openTrend(ch, field));
-      cardsEl.appendChild(card);
-      showMM(ch.id, field.n, field.digits ?? 1);
-    }
-    CONFIG.channels.forEach(ch => ch.fields.forEach(f => buildCard(ch, f)));
-
-    // ====== Feld laden: /channels/{id}/fields/{n}/last.json ======
-    async function loadField(ch, f){
-      const url = new URL(`https://api.thingspeak.com/channels/${ch.id}/fields/${f.n}/last.json`);
-      if (ch.readKey) url.searchParams.set('api_key', ch.readKey);
-      try{
-        const res = await fetch(url.toString(), { cache:'no-store' });
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        const obj = await res.json();
-
-        const createdAt = obj.created_at || null;
-        const raw = obj[`field${f.n}`];
-        const card = document.getElementById(`card-c${ch.id}-f${f.n}`);
-
-        // Stale-Färbung: gelb, wenn älter als CONFIG.staleMinutes
-        if (createdAt) {
-          const ageMin = (Date.now() - new Date(createdAt).getTime())/60000;
-          if (ageMin > CONFIG.staleMinutes) card.classList.add('stale'); else card.classList.remove('stale');
-        }
-
-        const stateKey = `${ch.id}-${f.n}`;
-        // nur updaten, wenn neuer Zeitstempel als bisher
-        if (!STATE.lastAt[stateKey] || createdAt !== STATE.lastAt[stateKey]) {
-          const num = raw==null ? NaN : parseFloat(raw);
-          const text = Number.isFinite(num) ? fmt(num, f.digits ?? 1) : (raw ?? '–');
-          document.getElementById(`val-c${ch.id}-f${f.n}`).textContent = text;
-          STATE.lastAt[stateKey] = createdAt;
-          if (Number.isFinite(num)) updateMM(ch.id, f.n, num);
-        }
-
-        document.getElementById('errorGlobal').style.display='none';
-        return createdAt;
-      }catch(e){
-        const eg=document.getElementById('errorGlobal');
-        eg.textContent=`Konnte Daten nicht laden: ${e.message}`;
-        eg.style.display='block';
-        return null;
-      }
-    }
-
-    async function loadAll(){
-      // Tageswechsel erkennen: Min/Max-Anzeigen neu initialisieren
-      const tk = todayKey();
-      if (tk !== STATE.today) {
-        STATE.today = tk;
-        CONFIG.channels.forEach(ch => ch.fields.forEach(f => showMM(ch.id, f.n, f.digits ?? 1)));
-      }
-
-      const timeMatrix = await Promise.all(
-        CONFIG.channels.map(ch => Promise.all(ch.fields.map(f => loadField(ch,f))))
-      );
-      const times = timeMatrix.flat().filter(Boolean).map(t => new Date(t).getTime());
-      if (times.length) {
-        const maxTs = Math.max(...times);
-        document.getElementById('lastUpdate').textContent = `Letztes Update: ${labelFromISO(new Date(maxTs).toISOString())}`;
-      }
-    }
-
-    // ====== Trend-Modal ======
-    const modal = $('#trendModal');
-    const backBtn = $('#backBtn');
-    const rangeSel = $('#rangeSel');
-    const trendMeta = $('#trendMeta');
-
-    function openTrend(ch, f){
-      // Titel
-      $('#trendTitle').textContent = `${f.title} • Trend`;
-      modal.classList.add('open');
-      STATE.trend.ch = ch; STATE.trend.f = f;
-      // Initial laden mit aktuellem Range
-      loadTrend();
-    }
-    function closeTrend(){ modal.classList.remove('open'); if (STATE.trend.chart){ STATE.trend.chart.destroy(); STATE.trend.chart=null; } }
-
-    backBtn.addEventListener('click', closeTrend);
-    modal.addEventListener('click', (e)=>{ if(e.target===modal) closeTrend(); });
-    rangeSel.addEventListener('change', loadTrend);
-
-    async function loadTrend(){
-      const ch = STATE.trend.ch, f = STATE.trend.f; if(!ch||!f) return;
-      const days = Number(rangeSel.value || 7);
-      const maxPts = CONFIG.maxPointsByDays[days] || 1000;
-      const url = new URL(`https://api.thingspeak.com/channels/${ch.id}/fields/${f.n}.json`);
-      url.searchParams.set('days', String(days));
-      url.searchParams.set('results', String(maxPts));
-      if (ch.readKey) url.searchParams.set('api_key', ch.readKey);
-
-      trendMeta.textContent = 'lädt…';
-      try{
-        const res = await fetch(url.toString(), { cache:'no-store' });
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const url = `${base}?${params.toString()}`;
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = 'Hole Daten…';
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        const feeds = Array.isArray(data.feeds) ? data.feeds : [];
-        const values = []; const labels = [];
-        for (const it of feeds){
-          const v = parseFloat(it[`field${f.n}`]);
-          if (!Number.isFinite(v)) continue;
-          values.push(v);
-          labels.push(labelFromISO(it.created_at));
-        }
-
-        // Chart zeichnen/aktualisieren
-        const ctx = document.getElementById('trendCanvas').getContext('2d');
-        if (STATE.trend.chart) STATE.trend.chart.destroy();
-        STATE.trend.chart = new Chart(ctx, {
-          type: 'line',
-          data: { labels, datasets: [{ data: values, borderWidth: 2, pointRadius: 0, tension: 0.25 }] },
-          options: { responsive:true, maintainAspectRatio:false, animation:false, scales:{ x:{ ticks:{ maxTicksLimit:8 } }, y:{ beginAtZero:false } }, plugins:{ legend:{ display:false } } }
-        });
-
-        // Meta
-        const unit = f.unit || '';
-        const count = values.length;
-        const first = feeds[0]?.created_at; const last = feeds[feeds.length-1]?.created_at;
-        trendMeta.textContent = count ? `${count} Punkte • Von ${labelFromISO(first)} bis ${labelFromISO(last)}${unit?` • Einheit: ${unit}`:''}` : 'Keine Daten im gewählten Zeitraum.';
-      }catch(e){
-        trendMeta.textContent = `Fehler beim Laden: ${e.message}`;
+        if (!data.feeds || !data.feeds.length) throw new Error('Keine Daten gefunden');
+        const latest = data.feeds[data.feeds.length - 1];
+        applyData(latest, data.channel);
+        statusEl.textContent = 'Aktualisiert';
+      } catch (err) {
+        console.error(err);
+        statusEl.innerHTML = `<span class="text-red-600">Fehler: ${err.message}</span>`;
       }
     }
 
-    // ====== Initial laden + Auto-Refresh ======
-    loadAll();
-    setInterval(loadAll, CONFIG.refreshSec*1000);
+    function applyData(feed, channelMeta) {
+      const F = CONFIG.FIELD_MAPPING;
+      // Rohwerte lesen und in Zahlen umwandeln, falls möglich
+      const temp = parseFloat(feed[F.temperatureC]);
+      const hum  = parseFloat(feed[F.humidityPct]);
+      const uv   = parseFloat(feed[F.uvIndex]);
+      const rainRaw = feed[F.rainFlag];
+
+      const rain = typeof rainRaw === 'string'
+        ? (rainRaw.trim() === '1' || rainRaw.trim().toLowerCase() === 'true')
+        : !!rainRaw;
+
+      // Formatierung
+      const tempTxt = isFinite(temp) ? `${temp.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '-- °C';
+      const humTxt  = isFinite(hum)  ? `${hum.toFixed(CONFIG.DECIMALS_HUM)} %` : '-- %';
+      const uvTxt   = isFinite(uv)   ? `${uv.toFixed(1)}` : '--';
+      const rainTxt = rain ? 'Ja' : 'Nein';
+
+      // DOM Updates – Karten
+      document.getElementById('tempCard').textContent = tempTxt;
+      document.getElementById('humCard').textContent = humTxt;
+      document.getElementById('uvCard').textContent = uvTxt;
+      document.getElementById('rainCard').textContent = rainTxt;
+
+      // DOM Updates – SVG
+      document.getElementById('tempValue').textContent = tempTxt;
+      document.getElementById('humValue').textContent = humTxt;
+      document.getElementById('uvValue').textContent = `UV – ${uvTxt}`;
+      document.getElementById('rainValue').textContent = `Regen: ${rainTxt}`;
+
+      // Optional: Sonne blinzeln bei hohem UV
+      const sun = document.getElementById('sunGroup');
+      if (isFinite(uv) && uv >= 6) sun.classList.add('blink'); else sun.classList.remove('blink');
+
+      // Zeitstempel
+      const tsEl = document.getElementById('timestamp');
+      const ts   = feed.created_at || new Date().toISOString();
+      const dt   = new Date(ts);
+      tsEl.textContent = `Letzte Aktualisierung: ${dt.toLocaleString()}`;
+
+      // Barrierefreiheit: Titel/Aria-Labels setzen
+      document.getElementById('houseScene').setAttribute('aria-label', `Werte: Temperatur ${tempTxt}, Luftfeuchte ${humTxt}, UV ${uvTxt}, Regen ${rainTxt}`);
+    }
+
+    // Auto-Refresh alle 60s (anpassbar)
+    let interval = setInterval(fetchFromThingSpeak, 60000);
+    document.getElementById('refreshBtn').addEventListener('click', fetchFromThingSpeak);
+
+    // Initialer Abruf
+    fetchFromThingSpeak();
   </script>
 </body>
 </html>
