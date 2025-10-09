@@ -5,23 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Haus-Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <meta name="description" content="Visualisiertes Haus-Dashboard mit Innen-/Außenwerten (Temp, Feuchte) plus UV, Regen und Wind, gespeist von ThingSpeak." />
+  <meta name="description" content="Visualisiertes Haus-Dashboard mit Innen-/Außenwerten (Temp, Feuchte) plus UV, Regen und Wind, gespeist von ThingSpeak. Automatischer Nachtmodus via UV-Schwelle." />
   <style>
     .metric { font-variant-numeric: tabular-nums; }
     .blink { animation: blink 1.2s linear infinite; }
     @keyframes blink { 50% { opacity: .4 } }
-    .spin {
-      animation-name: spin;
-      animation-iteration-count: infinite;
-      animation-timing-function: linear;
-    }
+    .spin { animation-name: spin; animation-iteration-count: infinite; animation-timing-function: linear; }
     @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
   </style>
 </head>
 <body class="min-h-screen bg-sky-50 text-slate-800 antialiased">
   <main class="max-w-5xl mx-auto p-4 md:p-8">
     <header class="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <h1 class="text-xl sm:text-2xl md:text-3xl font-bold leading-tight">Mein Haus-Dashboard</h1>
+      <h1 class="text-xl sm:text-2xl md:text-3xl font-bold leading-tight">Beni`s Wetterstation</h1>
       <div class="flex gap-2 w-full sm:w-auto">
         <button id="refreshBtn" class="flex-1 sm:flex-none px-4 py-2 rounded-2xl bg-sky-600 text-white hover:bg-sky-700 active:scale-[.99]">Aktualisieren</button>
       </div>
@@ -38,15 +34,16 @@
           // Innenwerte
           tempInC:   "field3",   // Innentemperatur °C
           humInPct:  "field4",   // Innenfeuchte %
-          // Zusätzliche Sensoren (optional)
+          // Zusätzliche Sensoren
           uvIndex:   "field5",   // UV-Index
           rainFlag:  "field6",   // 0/1 oder true/false
-          windMs:    "field7",   // Windgeschwindigkeit in m/s
+          windMs:    "field7",   // Wind m/s
         },
         NUM_RESULTS: 1,
         DECIMALS_TEMP: 1,
         DECIMALS_HUM: 0,
         DECIMALS_WIND: 1,
+        UV_NIGHT_THRESHOLD: 0.1, // <= 0.1 -> Nachtmodus
       };
     </script>
 
@@ -54,12 +51,15 @@
       <div class="grid gap-4 md:grid-cols-2 items-center">
         <!-- SVG-Bild -->
         <div class="w-full">
-          <svg id="houseScene" viewBox="0 0 880 520" class="w-full h-auto">
-            <!-- Himmel -->
+          <svg id="houseScene" viewBox="0 0 900 540" class="w-full h-auto">
             <defs>
-              <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="skyGradDay" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stop-color="#cfeffd" />
                 <stop offset="100%" stop-color="#eaf6ff" />
+              </linearGradient>
+              <linearGradient id="skyGradNight" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#0b1d3a" />
+                <stop offset="100%" stop-color="#0f2350" />
               </linearGradient>
               <linearGradient id="roofGrad" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stop-color="#f472b6" />
@@ -73,27 +73,33 @@
                 <feDropShadow dx="0" dy="3" stdDeviation="6" flood-opacity="0.18"/>
               </filter>
             </defs>
-            <rect x="0" y="0" width="880" height="520" fill="url(#skyGrad)"/>
 
-            <!-- Sonne oben links mit UV -->
-            <g id="sunGroup" transform="translate(120,110)" filter="url(#shadow)">
+            <!-- Himmel (wechselbar) -->
+            <rect id="sky" x="0" y="0" width="900" height="540" fill="url(#skyGradDay)"/>
+
+            <!-- Sonne / Mond -->
+            <g id="sunGroup" transform="translate(120,120)" filter="url(#shadow)">
               <circle r="56" fill="#ffd166" />
               <text id="uvValue" x="0" y="8" text-anchor="middle" font-size="22" font-weight="700" fill="#7c4a00">UV – --</text>
             </g>
+            <g id="moonGroup" transform="translate(120,120)" opacity="0">
+              <circle r="44" fill="#f1f5f9" />
+              <circle r="40" cx="10" cy="-6" fill="#0f2350" />
+            </g>
 
-            <!-- Wolken oben rechts mit Regenanzeige -->
-            <g id="cloudGroup" transform="translate(690,120)" filter="url(#shadow)">
+            <!-- Wolken + Regen -->
+            <g id="cloudGroup" transform="translate(720,130)" filter="url(#shadow)">
               <ellipse rx="64" ry="34" cx="0" cy="10" fill="#ffffff"/>
               <ellipse rx="50" ry="30" cx="-50" cy="22" fill="#ffffff"/>
               <ellipse rx="50" ry="30" cx="50" cy="22" fill="#ffffff"/>
               <text id="rainValue" x="0" y="65" text-anchor="middle" font-size="18" font-weight="600" fill="#334155">Regen: --</text>
             </g>
 
-            <!-- Wiese -->
-            <rect x="0" y="430" width="880" height="90" fill="#bbf7d0"/>
+            <!-- Wiese / Boden -->
+            <rect x="0" y="450" width="900" height="90" fill="#bbf7d0"/>
 
             <!-- Wind-Pinwheel links -->
-            <g id="windGroup" transform="translate(80,390)" filter="url(#shadow)">
+            <g id="windGroup" transform="translate(80,410)" filter="url(#shadow)">
               <line x1="0" y1="0" x2="0" y2="-80" stroke="#64748b" stroke-width="6"/>
               <g id="pinwheel" transform="translate(0,-80)">
                 <circle r="6" fill="#64748b"/>
@@ -104,11 +110,11 @@
                   <path d="M0,0 L-28,0 Q-22,-12 -10,-16 Z" fill="#94a3b8"/>
                 </g>
               </g>
-              <text id="windValue" x="-10" y="20" text-anchor="start" font-size="18" font-weight="700" fill="#0f172a">Wind: --</text>
+              <text id="windValue" x="-10" y="22" text-anchor="start" font-size="18" font-weight="700" fill="#0f172a">Wind: --</text>
             </g>
 
             <!-- Haus -->
-            <g id="houseGroup" transform="translate(360,250)" filter="url(#shadow)">
+            <g id="houseGroup" transform="translate(360,270)" filter="url(#shadow)">
               <!-- Dach -->
               <polygon points="-170,0 0,-110 170,0" fill="url(#roofGrad)" stroke="#f43f5e" stroke-width="2"/>
               <!-- Kamin -->
@@ -116,17 +122,17 @@
               <circle cx="82" cy="-120" r="5" fill="#e5e7eb"/>
               <circle cx="88" cy="-128" r="7" fill="#e5e7eb" opacity=".7"/>
 
-              <!-- Wände (leicht abgerundet) -->
+              <!-- Wände -->
               <rect x="-150" y="0" width="300" height="160" rx="14" ry="14" fill="url(#wallGrad)" stroke="#cbd5e1" stroke-width="2"/>
 
-              <!-- Innenwerte: zwei runde Fenster -->
-              <g id="windowTempIn" transform="translate(-90,40)">
+              <!-- Innenwerte (kleinere Felder) -->
+              <g id="windowTempIn" transform="translate(-100,44)">
                 <rect width="96" height="72" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
                 <text id="tempInValue" x="48" y="40" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
                 <text x="48" y="60" text-anchor="middle" font-size="12" fill="#475569">Innen Temp</text>
               </g>
 
-              <g id="windowHumIn" transform="translate(10,40)">
+              <g id="windowHumIn" transform="translate(4,44)">
                 <rect width="96" height="72" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
                 <text id="humInValue" x="48" y="40" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- %</text>
                 <text x="48" y="60" text-anchor="middle" font-size="12" fill="#475569">Innen Feuchte</text>
@@ -138,22 +144,40 @@
                 <circle cx="44" cy="60" r="3.5" fill="#7c2d12"/>
               </g>
 
-              <!-- Außenwerte: Wand-Kästchen außen rechts -->
-              <g id="outsidePanel" transform="translate(170,30)">
-                <rect width="120" height="120" rx="16" ry="16" fill="#ffffff" stroke="#cbd5e1"/>
-                <text id="tempOutValue" x="60" y="48" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
-                <text x="60" y="66" text-anchor="middle" font-size="12" fill="#475569">Außen Temp</text>
-                <text id="humOutValue" x="60" y="98" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- %</text>
-                <text x="60" y="116" text-anchor="middle" font-size="12" fill="#475569">Außen Feuchte</text>
+              <!-- Außenwerte (rechts, weiter raus und kleiner, 2 Kacheln übereinander) -->
+              <g id="outsidePanel" transform="translate(220,20)">
+                <g id="windowTempOut" transform="translate(0,0)">
+                  <rect width="96" height="72" rx="16" ry="16" fill="#ffffff" stroke="#cbd5e1"/>
+                  <text id="tempOutValue" x="48" y="40" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
+                  <text x="48" y="60" text-anchor="middle" font-size="12" fill="#475569">Außen Temp</text>
+                </g>
+                <g id="windowHumOut" transform="translate(0,88)">
+                  <rect width="96" height="72" rx="16" ry="16" fill="#ffffff" stroke="#cbd5e1"/>
+                  <text id="humOutValue" x="48" y="40" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- %</text>
+                  <text x="48" y="60" text-anchor="middle" font-size="12" fill="#475569">Außen Feuchte</text>
+                </g>
+              </g>
+            </g>
+
+            <!-- Nacht-Overlay (Sterne) -->
+            <g id="nightOverlay" opacity="0">
+              <g fill="#ffffff">
+                <circle cx="760" cy="90" r="1.2"/>
+                <circle cx="700" cy="60" r="1.5"/>
+                <circle cx="640" cy="120" r="1.1"/>
+                <circle cx="500" cy="80" r="1.4"/>
+                <circle cx="420" cy="50" r="1.2"/>
+                <circle cx="240" cy="70" r="1.1"/>
+                <circle cx="180" cy="140" r="1.3"/>
               </g>
             </g>
 
             <!-- Zeitstempel -->
-            <text id="timestamp" x="440" y="500" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: --</text>
+            <text id="timestamp" x="450" y="520" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: --</text>
           </svg>
         </div>
 
-        <!-- Werte + Status (mobilfreundlich – große, runde Karten) -->
+        <!-- Werte + Status (mobilfreundlich) -->
         <div class="space-y-3">
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div class="rounded-3xl border border-slate-200 p-3 sm:p-4 bg-white">
@@ -196,7 +220,7 @@
     </section>
 
     <footer class="mt-6 text-xs text-slate-500">
-      Optimiert für Smartphones: größere Touch-Ziele, kompakte Karten, skalierbares SVG. Du kannst die Feld-Zuordnung in <code>CONFIG.FIELD_MAPPING</code> an deine Channel-Felder anpassen.
+      Außenkacheln nach rechts versetzt & verkleinert. Nachtmodus schaltet automatisch, wenn UV ≤ 0.1.
     </footer>
   </main>
 
@@ -216,7 +240,7 @@
         const data = await res.json();
         if (!data.feeds || !data.feeds.length) throw new Error('Keine Daten gefunden');
         const latest = data.feeds[data.feeds.length - 1];
-        applyData(latest, data.channel);
+        applyData(latest);
         statusEl.textContent = 'Aktualisiert';
       } catch (err) {
         console.error(err);
@@ -255,9 +279,6 @@
       document.getElementById('windCard').textContent    = windTxt;
 
       // SVG
-      const sun = document.getElementById('sunGroup');
-      const pinwheel = document.getElementById('vanes');
-
       document.getElementById('tempInValue').textContent  = tempInTxt;
       document.getElementById('humInValue').textContent   = humInTxt;
       document.getElementById('tempOutValue').textContent = tempOutTxt;
@@ -266,13 +287,32 @@
       document.getElementById('rainValue').textContent    = `Regen: ${rainTxt}`;
       document.getElementById('windValue').textContent    = `Wind: ${windTxt}`;
 
-      // UV Highlight
+      // UV/Nachtmodus
+      const sun = document.getElementById('sunGroup');
+      const moon = document.getElementById('moonGroup');
+      const sky  = document.getElementById('sky');
+      const stars= document.getElementById('nightOverlay');
+
       if (isFinite(uv) && uv >= 6) sun.classList.add('blink'); else sun.classList.remove('blink');
 
-      // Wind: Drehgeschwindigkeit ~ Wind (Begrenzung, damit's nicht ausrastet)
-      const baseDur = 6; // Sekunden bei 0 m/s
+      const isNight = isFinite(uv) ? (uv <= CONFIG.UV_NIGHT_THRESHOLD) : false;
+      if (isNight) {
+        sky.setAttribute('fill', 'url(#skyGradNight)');
+        sun.setAttribute('opacity', '0');
+        moon.setAttribute('opacity', '1');
+        stars.setAttribute('opacity', '1');
+      } else {
+        sky.setAttribute('fill', 'url(#skyGradDay)');
+        sun.setAttribute('opacity', '1');
+        moon.setAttribute('opacity', '0');
+        stars.setAttribute('opacity', '0');
+      }
+
+      // Wind: Drehgeschwindigkeit ~ Wind (Deckelung)
+      const pinwheel = document.getElementById('vanes');
+      const baseDur = 6; // s bei 0 m/s
       const speed = Math.max(0, Math.min(isFinite(wind) ? wind : 0, 20));
-      const dur = Math.max(0.8, baseDur - speed * 0.25); // schneller bei mehr Wind
+      const dur = Math.max(0.8, baseDur - speed * 0.25);
       pinwheel.style.animationDuration = `${dur}s`;
       pinwheel.classList.add('spin');
 
@@ -283,7 +323,7 @@
       tsEl.textContent = `Letzte Aktualisierung: ${dt.toLocaleString()}`;
 
       // ARIA
-      document.getElementById('houseScene').setAttribute('aria-label', `Werte innen: ${tempInTxt}, ${humInTxt}. außen: ${tempOutTxt}, ${humOutTxt}. UV ${uvTxt}, Wind ${windTxt}, Regen ${rainTxt}.`);
+      document.getElementById('houseScene').setAttribute('aria-label', `Innen: ${tempInTxt}, ${humInTxt}. Außen: ${tempOutTxt}, ${humOutTxt}. UV ${uvTxt}, Wind ${windTxt}, Regen ${rainTxt}.`);
     }
 
     // Auto-Refresh alle 60s
