@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Beni`s Wetterstation</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <meta name="description" content="Vollbild, smartphone-optimierte Wetter-Grafik mit Innen-/Außenwerten, UV/Nachtmodus, Wind & Regen aus ThingSpeak." />
+  <meta name="description" content="Vollbild, smartphone-optimierte Wetter-Grafik mit Innen-/Außenwerten (vertikal), UV/Nachtmodus, Wind & Regen aus ThingSpeak." />
   <style>
     html, body { height: 100%; }
     .metric { font-variant-numeric: tabular-nums; }
@@ -16,7 +16,7 @@
   </style>
 </head>
 <body class="h-screen w-screen overflow-hidden bg-black text-slate-100 antialiased">
-  <!-- Overlay-Header (fixiert) -->
+  <!-- Titel als Overlay, schlank -->
   <div class="pointer-events-none fixed inset-x-0 top-0 z-20 flex items-center justify-between px-4" style="padding-top: env(safe-area-inset-top);">
     <h1 class="pointer-events-auto select-none text-lg font-bold drop-shadow">Beni`s Wetterstation</h1>
     <button id="refreshBtn" class="pointer-events-auto px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur text-white text-sm">Aktualisieren</button>
@@ -50,31 +50,29 @@
       <!-- Himmel (wechselbar) -->
       <rect id="sky" x="0" y="0" width="900" height="540" fill="url(#skyGradDay)"/>
 
-      <!-- Sonne / Mond -->
-      <g id="sunGroup" transform="translate(120,120)" filter="url(#shadow)">
-        <circle r="56" fill="#ffd166" />
-        <text id="uvValue" x="0" y="8" text-anchor="middle" font-size="22" font-weight="700" fill="#7c4a00">UV – --</text>
+      <!-- Sonne & Wolke ÜBER dem Haus (zentriert links/rechts) -->
+      <g id="sunGroup" transform="translate(410,90)" filter="url(#shadow)">
+        <circle r="50" fill="#ffd166" />
+        <text id="uvValue" x="0" y="8" text-anchor="middle" font-size="20" font-weight="700" fill="#7c4a00">UV – --</text>
       </g>
-      <g id="moonGroup" transform="translate(120,120)" opacity="0">
-        <circle r="44" fill="#f1f5f9" />
-        <circle r="40" cx="10" cy="-6" fill="#0f2350" />
+      <g id="moonGroup" transform="translate(410,90)" opacity="0">
+        <circle r="40" fill="#f1f5f9" />
+        <circle r="36" cx="8" cy="-5" fill="#0f2350" />
       </g>
-
-      <!-- Wolken + Regen -->
-      <g id="cloudGroup" transform="translate(720,130)" filter="url(#shadow)">
+      <g id="cloudGroup" transform="translate(540,105)" filter="url(#shadow)">
         <ellipse rx="64" ry="34" cx="0" cy="10" fill="#ffffff"/>
         <ellipse rx="50" ry="30" cx="-50" cy="22" fill="#ffffff"/>
         <ellipse rx="50" ry="30" cx="50" cy="22" fill="#ffffff"/>
         <text id="rainValue" x="0" y="65" text-anchor="middle" font-size="18" font-weight="600" fill="#334155">Regen: --</text>
       </g>
 
-      <!-- Wiese / Boden -->
-      <rect x="0" y="450" width="900" height="90" fill="#bbf7d0"/>
+      <!-- Wiese / Boden schmal -->
+      <rect x="0" y="480" width="900" height="60" fill="#bbf7d0"/>
 
-      <!-- Wind-Pinwheel links -->
-      <g id="windGroup" transform="translate(80,410)" filter="url(#shadow)">
-        <line x1="0" y1="0" x2="0" y2="-80" stroke="#64748b" stroke-width="6"/>
-        <g id="pinwheel" transform="translate(0,-80)">
+      <!-- Windrad LINKS neben dem Haus -->
+      <g id="windGroup" transform="translate(210,420)" filter="url(#shadow)">
+        <line x1="0" y1="0" x2="0" y2="-90" stroke="#64748b" stroke-width="6"/>
+        <g id="pinwheel" transform="translate(0,-90)">
           <circle r="6" fill="#64748b"/>
           <g id="vanes">
             <path d="M0,0 L0,-28 Q12,-22 16,-10 Z" fill="#94a3b8"/>
@@ -86,52 +84,52 @@
         <text id="windValue" x="-10" y="22" text-anchor="start" font-size="18" font-weight="700" fill="#0f172a">Wind: --</text>
       </g>
 
-      <!-- Haus -->
-      <g id="houseGroup" transform="translate(360,270)" filter="url(#shadow)">
-        <!-- Dach -->
-        <polygon points="-170,0 0,-110 170,0" fill="url(#roofGrad)" stroke="#f43f5e" stroke-width="2"/>
-        <!-- Kamin -->
-        <rect x="70" y="-110" width="24" height="46" fill="#ef4444" stroke="#b91c1c"/>
-        <circle cx="82" cy="-120" r="5" fill="#e5e7eb"/>
-        <circle cx="88" cy="-128" r="7" fill="#e5e7eb" opacity=".7"/>
-
-        <!-- Wände -->
-        <rect x="-150" y="0" width="300" height="160" rx="14" ry="14" fill="url(#wallGrad)" stroke="#cbd5e1" stroke-width="2"/>
-
-        <!-- Innenwerte -->
-        <g id="windowTempIn" transform="translate(-100,44)">
-          <rect width="96" height="72" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
-          <text id="tempInValue" x="48" y="40" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
-          <text x="48" y="60" text-anchor="middle" font-size="12" fill="#475569">Innen Temp</text>
+      <!-- AUSSENWERTE gestapelt NEBEN dem Windrad (links vom Haus) -->
+      <g id="outsidePanelLeft" transform="translate(260,250)" filter="url(#shadow)">
+        <g id="windowTempOut" transform="translate(0,0)">
+          <rect width="110" height="76" rx="16" ry="16" fill="#ffffff" stroke="#cbd5e1"/>
+          <text id="tempOutValue" x="55" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
+          <text x="55" y="64" text-anchor="middle" font-size="12" fill="#475569">Außen Temp</text>
         </g>
-        <g id="windowHumIn" transform="translate(4,44)">
-          <rect width="96" height="72" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
-          <text id="humInValue" x="48" y="40" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- %</text>
-          <text x="48" y="60" text-anchor="middle" font-size="12" fill="#475569">Innen Feuchte</text>
-        </g>
-
-        <!-- Tür -->
-        <g id="door" transform="translate(120,34)">
-          <rect width="56" height="116" rx="10" ry="10" fill="#f59e0b" stroke="#a16207"/>
-          <circle cx="44" cy="60" r="3.5" fill="#7c2d12"/>
-        </g>
-
-        <!-- Außenwerte rechts -->
-        <g id="outsidePanel" transform="translate(220,20)">
-          <g id="windowTempOut" transform="translate(0,0)">
-            <rect width="96" height="72" rx="16" ry="16" fill="#ffffff" stroke="#cbd5e1"/>
-            <text id="tempOutValue" x="48" y="40" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
-            <text x="48" y="60" text-anchor="middle" font-size="12" fill="#475569">Außen Temp</text>
-          </g>
-          <g id="windowHumOut" transform="translate(0,88)">
-            <rect width="96" height="72" rx="16" ry="16" fill="#ffffff" stroke="#cbd5e1"/>
-            <text id="humOutValue" x="48" y="40" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- %</text>
-            <text x="48" y="60" text-anchor="middle" font-size="12" fill="#475569">Außen Feuchte</text>
-          </g>
+        <g id="windowHumOut" transform="translate(0,90)">
+          <rect width="110" height="76" rx="16" ry="16" fill="#ffffff" stroke="#cbd5e1"/>
+          <text id="humOutValue" x="55" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- %</text>
+          <text x="55" y="64" text-anchor="middle" font-size="12" fill="#475569">Außen Feuchte</text>
         </g>
       </g>
 
-      <!-- Nacht-Overlay (Sterne) -->
+      <!-- SCHMALERES, HÖHERES HAUS mittig -->
+      <g id="houseGroup" transform="translate(470,300)" filter="url(#shadow)">
+        <!-- Dach (schmäler, höher) -->
+        <polygon points="-120,0 0,-140 120,0" fill="url(#roofGrad)" stroke="#f43f5e" stroke-width="2"/>
+        <!-- Kamin -->
+        <rect x="55" y="-140" width="22" height="50" fill="#ef4444" stroke="#b91c1c"/>
+        <circle cx="66" cy="-152" r="5" fill="#e5e7eb"/>
+        <circle cx="72" cy="-160" r="7" fill="#e5e7eb" opacity=".7"/>
+
+        <!-- Wände (schmal & höher) -->
+        <rect x="-110" y="0" width="220" height="220" rx="16" ry="16" fill="url(#wallGrad)" stroke="#cbd5e1" stroke-width="2"/>
+
+        <!-- INNENWERTE gestapelt -->
+        <g id="windowTempIn" transform="translate(-48,36)">
+          <rect width="96" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
+          <text id="tempInValue" x="48" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
+          <text x="48" y="64" text-anchor="middle" font-size="12" fill="#475569">Innen Temp</text>
+        </g>
+        <g id="windowHumIn" transform="translate(-48,130)">
+          <rect width="96" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
+          <text id="humInValue" x="48" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- %</text>
+          <text x="48" y="64" text-anchor="middle" font-size="12" fill="#475569">Innen Feuchte</text>
+        </g>
+
+        <!-- Tür -->
+        <g id="door" transform="translate(40,48)">
+          <rect width="60" height="160" rx="12" ry="12" fill="#f59e0b" stroke="#a16207"/>
+          <circle cx="46" cy="82" r="4" fill="#7c2d12"/>
+        </g>
+      </g>
+
+      <!-- Sterne -->
       <g id="nightOverlay" opacity="0">
         <g fill="#ffffff">
           <circle cx="760" cy="90" r="1.2"/>
@@ -144,7 +142,7 @@
         </g>
       </g>
 
-      <!-- Zeitstempel unten -->
+      <!-- Zeitstempel -->
       <text id="timestamp" x="450" y="520" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: --</text>
     </svg>
   </main>
@@ -152,7 +150,7 @@
   <script>
     const CONFIG = {
       CHANNEL_ID: "YOUR_CHANNEL_ID_HERE",
-      READ_API_KEY: "YOUR_READ_API_KEY_HERE", // leer lassen, wenn öffentlich
+      READ_API_KEY: "YOUR_READ_API_KEY_HERE",
       FIELD_MAPPING: {
         tempOutC:  "field1",
         humOutPct: "field2",
