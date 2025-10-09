@@ -49,12 +49,11 @@
 
       <rect id="sky" width="900" height="540" fill="url(#skyGradDay)" />
 
-      <!-- Sonne & Wolke korrigiert -->
       <g id="sunGroup" transform="translate(120,170)" filter="url(#shadow)" class="sunPulse">
         <circle r="50" fill="#ffd166" />
         <text id="uvValue" x="0" y="8" text-anchor="middle" font-size="20" font-weight="700" fill="#7c4a00">UV – --</text>
       </g>
-      <g id="moonGroup" transform="translate(90,110)" opacity="0">
+      <g id="moonGroup" transform="translate(120,170)" opacity="0">
         <circle r="40" fill="#f1f5f9" />
         <circle r="36" cx="8" cy="-5" fill="#0f2350" />
       </g>
@@ -67,7 +66,6 @@
 
       <rect x="0" y="500" width="900" height="40" fill="#bbf7d0"/>
 
-      <!-- Windrad -->
       <g id="windGroup" transform="translate(330,475)" filter="url(#shadow)">
         <line x1="0" y1="0" x2="0" y2="-90" stroke="#64748b" stroke-width="6"/>
         <g id="pinwheel" transform="translate(0,-90)">
@@ -82,21 +80,19 @@
         <text id="windValue" x="-10" y="22" text-anchor="start" font-size="18" font-weight="700" fill="#0f172a">Wind: --</text>
       </g>
 
-      <!-- Außenwerte -->
       <g id="outsidePanelLeft" transform="translate(300,165)" filter="url(#shadow)">
         <g id="windowTempOut" transform="translate(0,0)">
-          <rect width="110" height="76" rx="16" ry="16" fill="#ffffff" stroke="#cbd5e1"/>
-          <text id="tempOutValue" x="55" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
-          <text x="55" y="64" text-anchor="middle" font-size="12" fill="#475569">Außen Temp</text>
+          <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
+          <text id="tempOutValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
+          <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Außen Temp</text>
         </g>
         <g id="windowHumOut" transform="translate(0,90)">
-          <rect width="110" height="76" rx="16" ry="16" fill="#ffffff" stroke="#cbd5e1"/>
-          <text id="humOutValue" x="55" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- %</text>
-          <text x="55" y="64" text-anchor="middle" font-size="12" fill="#475569">Außen Feuchte</text>
+          <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
+          <text id="humOutValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- %</text>
+          <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Außen Feuchte</text>
         </g>
       </g>
 
-      <!-- Haus nach links korrigiert -->
       <g id="houseGroup" transform="translate(515,310) scale(0.85)" filter="url(#shadow)">
         <ellipse cx="0" cy="230" rx="140" ry="18" fill="#000" opacity="0.12" />
         <polygon points="-95,0 0,-100 95,0" fill="url(#roofGrad)" stroke="#f43f5e" stroke-width="2"/>
