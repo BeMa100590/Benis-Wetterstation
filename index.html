@@ -100,32 +100,32 @@
 
       <!-- SCHMALERES, HÖHERES HAUS mittig -->
       <g id="houseGroup" transform="translate(470,300)" filter="url(#shadow)">
-        <!-- Dach (schmäler, höher) -->
-        <polygon points="-120,0 0,-140 120,0" fill="url(#roofGrad)" stroke="#f43f5e" stroke-width="2"/>
+        <!-- Dach (noch schmäler & niedriger) -->
+        <polygon points="-95,0 0,-100 95,0" fill="url(#roofGrad)" stroke="#f43f5e" stroke-width="2"/>
         <!-- Kamin -->
-        <rect x="55" y="-140" width="22" height="50" fill="#ef4444" stroke="#b91c1c"/>
-        <circle cx="66" cy="-152" r="5" fill="#e5e7eb"/>
-        <circle cx="72" cy="-160" r="7" fill="#e5e7eb" opacity=".7"/>
+        <rect x="48" y="-100" width="20" height="46" fill="#ef4444" stroke="#b91c1c"/>
+        <circle cx="58" cy="-110" r="4.5" fill="#e5e7eb"/>
+        <circle cx="64" cy="-118" r="6" fill="#e5e7eb" opacity=".7"/>
 
-        <!-- Wände (schmal & höher) -->
-        <rect x="-110" y="0" width="220" height="220" rx="16" ry="16" fill="url(#wallGrad)" stroke="#cbd5e1" stroke-width="2"/>
+        <!-- Wände (schmaler) -->
+        <rect x="-90" y="0" width="180" height="220" rx="16" ry="16" fill="url(#wallGrad)" stroke="#cbd5e1" stroke-width="2"/>
 
-        <!-- INNENWERTE gestapelt -->
-        <g id="windowTempIn" transform="translate(-48,36)">
-          <rect width="96" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
-          <text id="tempInValue" x="48" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
-          <text x="48" y="64" text-anchor="middle" font-size="12" fill="#475569">Innen Temp</text>
+        <!-- INNENWERTE gestapelt (weiter links, aus der Tür raus) -->
+        <g id="windowTempIn" transform="translate(-84,36)">
+          <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
+          <text id="tempInValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
+          <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Innen Temp</text>
         </g>
-        <g id="windowHumIn" transform="translate(-48,130)">
-          <rect width="96" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
-          <text id="humInValue" x="48" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- %</text>
-          <text x="48" y="64" text-anchor="middle" font-size="12" fill="#475569">Innen Feuchte</text>
+        <g id="windowHumIn" transform="translate(-84,130)">
+          <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
+          <text id="humInValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- %</text>
+          <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Innen Feuchte</text>
         </g>
 
-        <!-- Tür -->
-        <g id="door" transform="translate(40,48)">
-          <rect width="60" height="160" rx="12" ry="12" fill="#f59e0b" stroke="#a16207"/>
-          <circle cx="46" cy="82" r="4" fill="#7c2d12"/>
+        <!-- Tür (weiter nach rechts versetzt) -->
+        <g id="door" transform="translate(26,48)">
+          <rect width="56" height="160" rx="12" ry="12" fill="#f59e0b" stroke="#a16207"/>
+          <circle cx="42" cy="82" r="4" fill="#7c2d12"/>
         </g>
       </g>
 
