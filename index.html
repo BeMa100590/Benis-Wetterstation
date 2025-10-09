@@ -49,9 +49,7 @@
 
       <rect id="sky" width="900" height="540" fill="url(#skyGradDay)" />
 
-      <!-- sun moved -->
-      <!-- moon moved -->
-      <!-- cloud moved -->
+      <!-- sun/cloud placeholders removed -->
 
       <rect x="0" y="500" width="900" height="40" fill="#bbf7d0"/>
 
@@ -108,20 +106,9 @@
       </g>
 
       <!-- Sonne & Wolke (oben, über dem Haus, sichtbar) -->
-      <g id="sunGroup" transform="translate(430,90)" filter="url(#shadow)" class="sunPulse">
-        <circle r="50" fill="#ffd166" />
-        <text id="uvValue" x="0" y="8" text-anchor="middle" font-size="20" font-weight="700" fill="#7c4a00">UV – --</text>
-      </g>
-      <g id="moonGroup" transform="translate(240,90)" opacity="0">
-        <circle r="40" fill="#f1f5f9" />
-        <circle r="36" cx="8" cy="-5" fill="#0f2350" />
-      </g>
-      <g id="cloudGroup" transform="translate(520,95)" filter="url(#shadow)" class="cloudFloat">
-        <ellipse rx="64" ry="34" cx="0" cy="10" fill="#ffffff"/>
-        <ellipse rx="50" ry="30" cx="-50" cy="22" fill="#ffffff"/>
-        <ellipse rx="50" ry="30" cx="50" cy="22" fill="#ffffff"/>
-        <text id="rainValue" x="0" y="65" text-anchor="middle" font-size="18" font-weight="600" fill="#334155">Regen: --</text>
-      </g>
+      <!-- sun removed -->
+      <!-- moon removed -->
+      <!-- cloud removed -->
 
       <g id="nightOverlay" opacity="0">
         <g fill="#ffffff">
@@ -136,6 +123,22 @@
       </g>
 
       <text id="timestamp" x="450" y="520" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: --</text>
+      
+      <!-- === TOPMOST: Sonne & Wolke (sichtbar, ganz oben gerendert) === -->
+      <g id="sunGroup" transform="translate(360,100)" filter="url(#shadow)" class="sunPulse" style="pointer-events:none">
+        <circle r="50" fill="#ffd166" stroke="#d97706" stroke-width="2"/>
+        <text id="uvValue" x="0" y="8" text-anchor="middle" font-size="20" font-weight="700" fill="#7c4a00">UV – --</text>
+      </g>
+      <g id="moonGroup" transform="translate(360,100)" opacity="0" style="pointer-events:none">
+        <circle r="40" fill="#f1f5f9" stroke="#cbd5e1" />
+        <circle r="36" cx="8" cy="-5" fill="#0f2350" />
+      </g>
+      <g id="cloudGroup" transform="translate(470,105)" filter="url(#shadow)" class="cloudFloat" style="pointer-events:none">
+        <ellipse rx="64" ry="34" cx="0" cy="10" fill="#ffffff" stroke="#e2e8f0"/>
+        <ellipse rx="50" ry="30" cx="-50" cy="22" fill="#ffffff" stroke="#e2e8f0"/>
+        <ellipse rx="50" ry="30" cx="50" cy="22" fill="#ffffff" stroke="#e2e8f0"/>
+        <text id="rainValue" x="0" y="65" text-anchor="middle" font-size="18" font-weight="600" fill="#334155">Regen: --</text>
+      </g>
     </svg>
   </main>
 
