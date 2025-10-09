@@ -5,24 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Beni`s Wetterstation</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <meta name="description" content="Vollbild, smartphone-optimierte Wetter-Grafik mit Innen-/Außenwerten (vertikal), UV/Nachtmodus, Wind & Regen aus ThingSpeak." />
   <style>
     html, body { height: 100%; }
-    .metric { font-variant-numeric: tabular-nums; }
     .blink { animation: blink 1.2s linear infinite; }
     @keyframes blink { 50% { opacity: .4 } }
-    .spin { animation-name: spin; animation-iteration-count: infinite; animation-timing-function: linear; }
+    .spin { animation: spin linear infinite; }
     @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+    /* Neue, dezente Animationen */
+    .sunPulse { animation: sunPulse 6s ease-in-out infinite; transform-origin: center; }
+    @keyframes sunPulse { 0%,100% { transform: scale(1); opacity: 1 } 50% { transform: scale(1.05); opacity: .95 } }
+    .cloudFloat { animation: cloudFloat 18s ease-in-out infinite; }
+    @keyframes cloudFloat { 0%,100% { transform: translateX(0) } 50% { transform: translateX(-18px) } }
   </style>
 </head>
 <body class="h-screen w-screen overflow-hidden bg-black text-slate-100 antialiased">
-  <!-- Titel als Overlay, schlank -->
-  <div class="pointer-events-none fixed inset-x-0 top-0 z-20 flex items-center justify-between px-4" style="padding-top: env(safe-area-inset-top);">
-    <h1 class="pointer-events-auto select-none text-lg font-bold drop-shadow">Beni`s Wetterstation</h1>
-    <button id="refreshBtn" class="pointer-events-auto px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur text-white text-sm">Aktualisieren</button>
+  <div class="fixed inset-x-0 top-0 z-20 flex items-center justify-between px-4" style="padding-top: env(safe-area-inset-top);">
+    <h1 class="text-lg font-bold drop-shadow">Beni`s Wetterstation</h1>
+    <button id="refreshBtn" class="px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur text-white text-sm">Aktualisieren</button>
   </div>
 
-  <!-- Vollbild-Szene -->
   <main class="h-[100svh] w-screen">
     <svg id="houseScene" viewBox="0 0 900 540" preserveAspectRatio="xMidYMid slice" class="h-full w-full">
       <defs>
@@ -47,30 +48,30 @@
         </filter>
       </defs>
 
-      <!-- Himmel (wechselbar) -->
-      <rect id="sky" x="0" y="0" width="900" height="540" fill="url(#skyGradDay)"/>
+      <!-- Himmel -->
+      <rect id="sky" width="900" height="540" fill="url(#skyGradDay)" />
 
-      <!-- Sonne & Wolke ÜBER dem Haus (zentriert links/rechts) -->
-      <g id="sunGroup" transform="translate(410,90)" filter="url(#shadow)">
+      <!-- Sonne & Wolke (weiter links oben) -->
+      <g id="sunGroup" transform="translate(110,115)" filter="url(#shadow)" class="sunPulse">
         <circle r="50" fill="#ffd166" />
         <text id="uvValue" x="0" y="8" text-anchor="middle" font-size="20" font-weight="700" fill="#7c4a00">UV – --</text>
       </g>
-      <g id="moonGroup" transform="translate(410,90)" opacity="0">
+      <g id="moonGroup" transform="translate(110,115)" opacity="0">
         <circle r="40" fill="#f1f5f9" />
         <circle r="36" cx="8" cy="-5" fill="#0f2350" />
       </g>
-      <g id="cloudGroup" transform="translate(540,105)" filter="url(#shadow)">
+      <g id="cloudGroup" transform="translate(255,125)" filter="url(#shadow)" class="cloudFloat">
         <ellipse rx="64" ry="34" cx="0" cy="10" fill="#ffffff"/>
         <ellipse rx="50" ry="30" cx="-50" cy="22" fill="#ffffff"/>
         <ellipse rx="50" ry="30" cx="50" cy="22" fill="#ffffff"/>
         <text id="rainValue" x="0" y="65" text-anchor="middle" font-size="18" font-weight="600" fill="#334155">Regen: --</text>
       </g>
 
-      <!-- Wiese / Boden schmal -->
-      <rect x="0" y="480" width="900" height="60" fill="#bbf7d0"/>
+      <!-- Schmale Wiese für mehr Himmel -->
+      <rect x="0" y="500" width="900" height="40" fill="#bbf7d0"/>
 
-      <!-- Windrad LINKS neben dem Haus -->
-      <g id="windGroup" transform="translate(210,420)" filter="url(#shadow)">
+      <!-- Windrad links -->
+      <g id="windGroup" transform="translate(160,420)" filter="url(#shadow)">
         <line x1="0" y1="0" x2="0" y2="-90" stroke="#64748b" stroke-width="6"/>
         <g id="pinwheel" transform="translate(0,-90)">
           <circle r="6" fill="#64748b"/>
@@ -84,8 +85,8 @@
         <text id="windValue" x="-10" y="22" text-anchor="start" font-size="18" font-weight="700" fill="#0f172a">Wind: --</text>
       </g>
 
-      <!-- AUSSENWERTE gestapelt NEBEN dem Windrad (links vom Haus) -->
-      <g id="outsidePanelLeft" transform="translate(260,250)" filter="url(#shadow)">
+      <!-- Außenwerte gestapelt links (gut sichtbar) -->
+      <g id="outsidePanelLeft" transform="translate(210,250)" filter="url(#shadow)">
         <g id="windowTempOut" transform="translate(0,0)">
           <rect width="110" height="76" rx="16" ry="16" fill="#ffffff" stroke="#cbd5e1"/>
           <text id="tempOutValue" x="55" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
@@ -98,19 +99,22 @@
         </g>
       </g>
 
-      <!-- SCHMALERES, HÖHERES HAUS mittig -->
-      <g id="houseGroup" transform="translate(470,300)" filter="url(#shadow)">
-        <!-- Dach (noch schmäler & niedriger) -->
+      <!-- Haus 15% kleiner, etwas nach rechts unten -->
+      <g id="houseGroup" transform="translate(600,330) scale(0.85)" filter="url(#shadow)">
+        <!-- Bodenschatten (plastischer) -->
+        <ellipse cx="0" cy="230" rx="140" ry="18" fill="#000" opacity="0.12" />
+
+        <!-- Dach -->
         <polygon points="-95,0 0,-100 95,0" fill="url(#roofGrad)" stroke="#f43f5e" stroke-width="2"/>
         <!-- Kamin -->
         <rect x="48" y="-100" width="20" height="46" fill="#ef4444" stroke="#b91c1c"/>
         <circle cx="58" cy="-110" r="4.5" fill="#e5e7eb"/>
         <circle cx="64" cy="-118" r="6" fill="#e5e7eb" opacity=".7"/>
 
-        <!-- Wände (schmaler) -->
+        <!-- Wände -->
         <rect x="-90" y="0" width="180" height="220" rx="16" ry="16" fill="url(#wallGrad)" stroke="#cbd5e1" stroke-width="2"/>
 
-        <!-- INNENWERTE gestapelt (weiter links, aus der Tür raus) -->
+        <!-- Innenwerte (gestapelt, links) -->
         <g id="windowTempIn" transform="translate(-84,36)">
           <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
           <text id="tempInValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
@@ -122,7 +126,7 @@
           <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Innen Feuchte</text>
         </g>
 
-        <!-- Tür (weiter nach rechts versetzt) -->
+        <!-- Tür rechts -->
         <g id="door" transform="translate(26,48)">
           <rect width="56" height="160" rx="12" ry="12" fill="#f59e0b" stroke="#a16207"/>
           <circle cx="42" cy="82" r="4" fill="#7c2d12"/>
@@ -142,7 +146,6 @@
         </g>
       </g>
 
-      <!-- Zeitstempel -->
       <text id="timestamp" x="450" y="520" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: --</text>
     </svg>
   </main>
@@ -151,107 +154,87 @@
     const CONFIG = {
       CHANNEL_ID: "YOUR_CHANNEL_ID_HERE",
       READ_API_KEY: "YOUR_READ_API_KEY_HERE",
-      FIELD_MAPPING: {
-        tempOutC:  "field1",
-        humOutPct: "field2",
-        tempInC:   "field3",
-        humInPct:  "field4",
-        uvIndex:   "field5",
-        rainFlag:  "field6",
-        windMs:    "field7",
-      },
-      NUM_RESULTS: 1,
-      DECIMALS_TEMP: 1,
-      DECIMALS_HUM: 0,
-      DECIMALS_WIND: 1,
-      UV_NIGHT_THRESHOLD: 0.1,
+      FIELD_MAPPING: { tempOutC: "field1", humOutPct: "field2", tempInC: "field3", humInPct: "field4", uvIndex: "field5", rainFlag: "field6", windMs: "field7" },
+      UV_NIGHT_THRESHOLD: 0.1
     };
 
     async function fetchFromThingSpeak() {
       const base = `https://api.thingspeak.com/channels/${CONFIG.CHANNEL_ID}/feeds.json`;
-      const params = new URLSearchParams({ results: String(CONFIG.NUM_RESULTS) });
-      if (CONFIG.READ_API_KEY && CONFIG.READ_API_KEY !== "YOUR_READ_API_KEY_HERE") params.set("api_key", CONFIG.READ_API_KEY);
+      const params = new URLSearchParams({ results: '1' });
+      if (CONFIG.READ_API_KEY && CONFIG.READ_API_KEY !== 'YOUR_READ_API_KEY_HERE') params.set('api_key', CONFIG.READ_API_KEY);
       const url = `${base}?${params.toString()}`;
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (!data.feeds || !data.feeds.length) throw new Error('Keine Daten gefunden');
-        const latest = data.feeds[data.feeds.length - 1];
-        applyData(latest);
-      } catch (err) {
-        console.error(err);
-      }
+        applyData(data.feeds[data.feeds.length - 1]);
+      } catch (e) { console.error(e); }
     }
 
-    function n(x) { const v = parseFloat(x); return isFinite(v) ? v : NaN; }
+    function n(x){ const v=parseFloat(x); return isFinite(v)?v:NaN; }
 
-    function applyData(feed) {
-      const F = CONFIG.FIELD_MAPPING;
-      const tempIn  = n(feed[F.tempInC]);
-      const humIn   = n(feed[F.humInPct]);
-      const tempOut = n(feed[F.tempOutC]);
-      const humOut  = n(feed[F.humOutPct]);
-      const uv      = n(feed[F.uvIndex]);
-      const wind    = n(feed[F.windMs]);
-      const rainRaw = feed[F.rainFlag];
-      const rain    = typeof rainRaw === 'string' ? (rainRaw.trim() === '1' || rainRaw.trim().toLowerCase() === 'true') : !!rainRaw;
+    function applyData(feed){
+      const F=CONFIG.FIELD_MAPPING;
+      const tempIn=n(feed[F.tempInC]);
+      const humIn=n(feed[F.humInPct]);
+      const tempOut=n(feed[F.tempOutC]);
+      const humOut=n(feed[F.humOutPct]);
+      const uv=n(feed[F.uvIndex]);
+      const wind=n(feed[F.windMs]);
+      const rainRaw=feed[F.rainFlag];
+      const rain= typeof rainRaw==='string' ? (rainRaw.trim()==='1'||rainRaw.trim().toLowerCase()==='true') : !!rainRaw;
 
-      const tIn  = isFinite(tempIn)  ? `${tempIn.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '-- °C';
-      const hIn  = isFinite(humIn)   ? `${humIn.toFixed(CONFIG.DECIMALS_HUM)} %`  : '-- %';
-      const tOut = isFinite(tempOut) ? `${tempOut.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '-- °C';
-      const hOut = isFinite(humOut)  ? `${humOut.toFixed(CONFIG.DECIMALS_HUM)} %`  : '-- %';
-      const uvTx = isFinite(uv)      ? `${uv.toFixed(1)}` : '--';
-      const wTx  = isFinite(wind)    ? `${wind.toFixed(CONFIG.DECIMALS_WIND)} m/s` : '-- m/s';
-      const rTx  = rain ? 'Ja' : 'Nein';
+      const tIn=isFinite(tempIn)?`${tempIn.toFixed(1)} °C`:'-- °C';
+      const hIn=isFinite(humIn)?`${humIn.toFixed(0)} %`:'-- %';
+      const tOut=isFinite(tempOut)?`${tempOut.toFixed(1)} °C`:'-- °C';
+      const hOut=isFinite(humOut)?`${humOut.toFixed(0)} %`:'-- %';
+      const uvTx=isFinite(uv)?`${uv.toFixed(1)}`:'--';
+      const wTx=isFinite(wind)?`${wind.toFixed(1)} m/s`:'-- m/s';
+      const rTx=rain?'Ja':'Nein';
 
-      // SVG Werte
-      document.getElementById('tempInValue').textContent  = tIn;
-      document.getElementById('humInValue').textContent   = hIn;
-      document.getElementById('tempOutValue').textContent = tOut;
-      document.getElementById('humOutValue').textContent  = hOut;
-      document.getElementById('uvValue').textContent      = `UV – ${uvTx}`;
-      document.getElementById('rainValue').textContent    = `Regen: ${rTx}`;
-      document.getElementById('windValue').textContent    = `Wind: ${wTx}`;
+      // Texte setzen
+      document.getElementById('tempInValue').textContent=tIn;
+      document.getElementById('humInValue').textContent=hIn;
+      document.getElementById('tempOutValue').textContent=tOut;
+      document.getElementById('humOutValue').textContent=hOut;
+      document.getElementById('uvValue').textContent=`UV – ${uvTx}`;
+      document.getElementById('rainValue').textContent=`Regen: ${rTx}`;
+      document.getElementById('windValue').textContent=`Wind: ${wTx}`;
 
-      // UV/Nachtmodus
-      const sun = document.getElementById('sunGroup');
-      const moon = document.getElementById('moonGroup');
-      const sky  = document.getElementById('sky');
-      const stars= document.getElementById('nightOverlay');
-
-      if (isFinite(uv) && uv >= 6) sun.classList.add('blink'); else sun.classList.remove('blink');
-      const isNight = isFinite(uv) ? (uv <= CONFIG.UV_NIGHT_THRESHOLD) : false;
-      if (isNight) {
-        sky.setAttribute('fill', 'url(#skyGradNight)');
-        sun.setAttribute('opacity', '0');
-        moon.setAttribute('opacity', '1');
-        stars.setAttribute('opacity', '1');
+      // Nachtmodus via UV
+      const sun=document.getElementById('sunGroup');
+      const moon=document.getElementById('moonGroup');
+      const sky=document.getElementById('sky');
+      const stars=document.getElementById('nightOverlay');
+      const isNight=isFinite(uv)?(uv<=CONFIG.UV_NIGHT_THRESHOLD):false;
+      if(isNight){
+        sky.setAttribute('fill','url(#skyGradNight)');
+        sun.setAttribute('opacity','0');
+        moon.setAttribute('opacity','1');
+        stars.setAttribute('opacity','1');
       } else {
-        sky.setAttribute('fill', 'url(#skyGradDay)');
-        sun.setAttribute('opacity', '1');
-        moon.setAttribute('opacity', '0');
-        stars.setAttribute('opacity', '0');
+        sky.setAttribute('fill','url(#skyGradDay)');
+        sun.setAttribute('opacity','1');
+        moon.setAttribute('opacity','0');
+        stars.setAttribute('opacity','0');
       }
 
-      // Windrotation
-      const pinwheel = document.getElementById('vanes');
-      const baseDur = 6; // s bei 0 m/s
-      const speed = Math.max(0, Math.min(isFinite(wind) ? wind : 0, 20));
-      pinwheel.style.animationDuration = `${Math.max(0.8, baseDur - speed * 0.25)}s`;
-      pinwheel.classList.add('spin');
+      // Windrad-Geschwindigkeit
+      const pin=document.getElementById('vanes');
+      const base=6, sp=Math.max(0,Math.min(isFinite(wind)?wind:0,20));
+      pin.style.animationDuration=`${Math.max(0.8, base - sp*0.25)}s`;
+      pin.classList.add('spin');
 
-      // Zeitstempel
-      const tsEl = document.getElementById('timestamp');
-      const ts   = feed.created_at || new Date().toISOString();
-      tsEl.textContent = `Letzte Aktualisierung: ${new Date(ts).toLocaleString()}`;
+      // Timestamp
+      const ts=feed.created_at||new Date().toISOString();
+      document.getElementById('timestamp').textContent=`Letzte Aktualisierung: ${new Date(ts).toLocaleString()}`;
 
       // ARIA
-      document.getElementById('houseScene').setAttribute('aria-label', `Innen: ${tIn}, ${hIn}. Außen: ${tOut}, ${hOut}. UV ${uvTx}, Wind ${wTx}, Regen ${rTx}.`);
+      document.getElementById('houseScene').setAttribute('aria-label',`Innen: ${tIn}, ${hIn}. Außen: ${tOut}, ${hOut}. UV ${uvTx}, Wind ${wTx}, Regen ${rTx}.`);
     }
 
-    // Auto-Refresh alle 60s
-    setInterval(fetchFromThingSpeak, 60000);
+    setInterval(fetchFromThingSpeak,60000);
     document.getElementById('refreshBtn').addEventListener('click', fetchFromThingSpeak);
     fetchFromThingSpeak();
   </script>
