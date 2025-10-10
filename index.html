@@ -18,8 +18,9 @@
   </style>
 </head>
 <body class="h-screen w-screen overflow-hidden bg-black text-slate-100 antialiased">
+  <!-- Obere Überschrift (schwarz) -->
   <div class="fixed inset-x-0 top-0 z-20 flex items-center justify-center px-4" style="padding-top: env(safe-area-inset-top);">
-    <h1 class="text-lg font-bold drop-shadow text-black bg-white/70 px-3 py-1 rounded-xl">Beni`s Wetterstation</h1>
+    <h1 class="text-lg font-bold text-black bg-white/70 px-3 py-1 rounded-xl">Beni`s Wetterstation</h1>
   </div>
 
   <main class="h-[100svh] w-screen">
@@ -41,13 +42,20 @@
           <stop offset="0%" stop-color="#f8fafc" />
           <stop offset="100%" stop-color="#e2e8f0" />
         </linearGradient>
+        <!-- Solarpanel-Gradient -->
+        <linearGradient id="panelGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#60a5fa"/>
+          <stop offset="100%" stop-color="#1e3a8a"/>
+        </linearGradient>
         <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
           <feDropShadow dx="0" dy="3" stdDeviation="6" flood-opacity="0.18"/>
         </filter>
       </defs>
 
+      <!-- Himmel -->
       <rect id="sky" width="900" height="540" fill="url(#skyGradDay)" />
 
+      <!-- Wiese -->
       <rect x="0" y="500" width="900" height="40" fill="#bbf7d0"/>
 
       <!-- Windrad -->
@@ -65,7 +73,7 @@
         <text id="windValue" x="-10" y="22" text-anchor="start" font-size="18" font-weight="700" fill="#0f172a">Wind: --</text>
       </g>
 
-      <!-- Außenwerte -->
+      <!-- Außenwerte (kompakt) -->
       <g id="outsidePanelLeft" transform="translate(300,165)" filter="url(#shadow)">
         <g id="windowTempOut" transform="translate(0,0)">
           <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
@@ -79,12 +87,25 @@
         </g>
       </g>
 
-      <!-- Haus -->
+      <!-- Haus (ohne Schornstein) + Solarpanel -->
       <g id="houseGroup" transform="translate(515,310) scale(0.85)" filter="url(#shadow)">
         <ellipse cx="0" cy="230" rx="140" ry="18" fill="#000" opacity="0.12" />
         <polygon points="-95,0 0,-100 95,0" fill="url(#roofGrad)" stroke="#f43f5e" stroke-width="2"/>
+        <!-- Solarpanel auf der linken Dachfläche -->
+        <g id="solar" transform="translate(-70,-10) rotate(-35)">
+          <rect x="0" y="0" width="80" height="28" rx="4" fill="url(#panelGrad)" stroke="#0f172a" stroke-opacity=".25"/>
+          <g opacity=".35" stroke="#93c5fd" stroke-width="1">
+            <line x1="16" y1="4" x2="16" y2="24"/>
+            <line x1="32" y1="4" x2="32" y2="24"/>
+            <line x1="48" y1="4" x2="48" y2="24"/>
+            <line x1="64" y1="4" x2="64" y2="24"/>
+            <line x1="4" y1="10" x2="76" y2="10"/>
+            <line x1="4" y1="18" x2="76" y2="18"/>
+          </g>
+        </g>
         <rect x="-90" y="0" width="180" height="220" rx="16" ry="16" fill="url(#wallGrad)" stroke="#cbd5e1" stroke-width="2"/>
 
+        <!-- Innenwerte -->
         <g id="windowTempIn" transform="translate(-84,36)">
           <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
           <text id="tempInValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
@@ -96,20 +117,24 @@
           <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Innen Feuchte</text>
         </g>
 
+        <!-- Tür -->
         <g id="door" transform="translate(26,48)">
           <rect width="56" height="160" rx="12" ry="12" fill="#f59e0b" stroke="#a16207"/>
           <circle cx="42" cy="82" r="4" fill="#7c2d12"/>
         </g>
       </g>
 
-      <!-- Sonne & Wolke -->
+      <!-- Sonne & Wolke (verschachtelte Animationen, damit iOS die Position nicht überschreibt) -->
       <g id="sunGroup" transform="translate(375,100) scale(0.9)" filter="url(#shadow)">
         <g class="sunPulse">
           <circle r="45" fill="#ffd166" stroke="#d97706" stroke-width="2"/>
           <text id="uvValue" x="0" y="8" text-anchor="middle" font-size="20" font-weight="700" fill="#7c4a00">UV – --</text>
         </g>
       </g>
-
+      <g id="moonGroup" transform="translate(375,100) scale(0.9)" opacity="0">
+        <circle r="36" fill="#f1f5f9"/>
+        <circle r="32" cx="8" cy="-5" fill="#0f2350" />
+      </g>
       <g id="cloudGroup" transform="translate(500,105) scale(0.9)" filter="url(#shadow)">
         <g class="cloudFloat">
           <ellipse rx="58" ry="30" cx="0" cy="10" fill="#ffffff" stroke="#e2e8f0"/>
@@ -119,17 +144,80 @@
         </g>
       </g>
 
+      <!-- Timestamp unten -->
       <text id="timestamp" x="450" y="520" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: --</text>
     </svg>
   </main>
 
   <script>
     const CONFIG = {
-      CHANNEL_ID: "YOUR_CHANNEL_ID_HERE",
-      READ_API_KEY: "YOUR_READ_API_KEY_HERE",
-      FIELD_MAPPING: { tempOutC: "field1", humOutPct: "field2", tempInC: "field3", humInPct: "field4", uvIndex: "field5", rainFlag: "field6", windMs: "field7" },
-      UV_NIGHT_THRESHOLD: 0.1
+      CHANNEL_ID: "3043993",
+      READ_API_KEY: "5QKSO8HZ6BNPFTDE",
+      FIELD_MAPPING: {
+        tempInC:  "field1", // Innen Temperatur (°C)
+        humInPct: "field2", // Innen Luftfeuchte (%)
+        tempOutC: "field3", // Außen Temperatur (°C)
+        humOutPct:"field4", // Außen Luftfeuchte (%)
+        uvIndex:  "field5"  // UV Index
+      },
+      UV_NIGHT_THRESHOLD: 0.1,
+      DECIMALS_TEMP: 1,
+      DECIMALS_HUM: 0
     };
+
+    async function fetchFromThingSpeak(){
+      const base = `https://api.thingspeak.com/channels/${CONFIG.CHANNEL_ID}/feeds.json`;
+      const params = new URLSearchParams({ results: "1", api_key: CONFIG.READ_API_KEY });
+      const url = `${base}?${params.toString()}`;
+      try {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        if (!data.feeds || !data.feeds.length) return;
+        applyData(data.feeds.at(-1));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function num(x){ const v = parseFloat(x); return Number.isFinite(v) ? v : NaN; }
+
+    function applyData(feed){
+      const F = CONFIG.FIELD_MAPPING;
+      const tIn  = num(feed[F.tempInC]);
+      const hIn  = num(feed[F.humInPct]);
+      const tOut = num(feed[F.tempOutC]);
+      const hOut = num(feed[F.humOutPct]);
+      const uv   = num(feed[F.uvIndex]);
+
+      document.getElementById("tempInValue").textContent  = Number.isFinite(tIn)  ? `${tIn.toFixed(CONFIG.DECIMALS_TEMP)} °C` : "-- °C";
+      document.getElementById("humInValue").textContent   = Number.isFinite(hIn)  ? `${hIn.toFixed(CONFIG.DECIMALS_HUM)} %`  : "-- %";
+      document.getElementById("tempOutValue").textContent = Number.isFinite(tOut) ? `${tOut.toFixed(CONFIG.DECIMALS_TEMP)} °C`: "-- °C";
+      document.getElementById("humOutValue").textContent  = Number.isFinite(hOut) ? `${hOut.toFixed(CONFIG.DECIMALS_HUM)} %`  : "-- %";
+      document.getElementById("uvValue").textContent      = Number.isFinite(uv)   ? `UV – ${uv.toFixed(1)}` : "UV – --";
+
+      // Nachtmodus via UV
+      const sky  = document.getElementById("sky");
+      const sun  = document.getElementById("sunGroup");
+      const moon = document.getElementById("moonGroup");
+      const isNight = Number.isFinite(uv) ? (uv <= CONFIG.UV_NIGHT_THRESHOLD) : false;
+      if (isNight) {
+        sky.setAttribute("fill","url(#skyGradNight)");
+        if (sun)  sun.setAttribute("opacity","0");
+        if (moon) moon.setAttribute("opacity","1");
+      } else {
+        sky.setAttribute("fill","url(#skyGradDay)");
+        if (sun)  sun.setAttribute("opacity","1");
+        if (moon) moon.setAttribute("opacity","0");
+      }
+
+      // Timestamp
+      const ts = feed.created_at || new Date().toISOString();
+      document.getElementById("timestamp").textContent = `Letzte Aktualisierung: ${new Date(ts).toLocaleString()}`;
+    }
+
+    fetchFromThingSpeak();
+    setInterval(fetchFromThingSpeak, 60000);
   </script>
 </body>
 </html>
