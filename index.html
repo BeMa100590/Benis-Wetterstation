@@ -154,70 +154,83 @@
       CHANNEL_ID: "3043993",
       READ_API_KEY: "5QKSO8HZ6BNPFTDE",
       FIELD_MAPPING: {
-        tempInC:  "field1", // Innen Temperatur (°C)
-        humInPct: "field2", // Innen Luftfeuchte (%)
-        tempOutC: "field3", // Außen Temperatur (°C)
-        humOutPct:"field4", // Außen Luftfeuchte (%)
-        uvIndex:  "field5"  // UV Index
+        tempInC:  1, // field1
+        humInPct: 2, // field2
+        tempOutC: 3, // field3
+        humOutPct: 4, // field4
+        uvIndex:  5  // field5
       },
       UV_NIGHT_THRESHOLD: 0.1,
       DECIMALS_TEMP: 1,
       DECIMALS_HUM: 0
     };
 
-    async function fetchFromThingSpeak(){
-      const base = `https://api.thingspeak.com/channels/${CONFIG.CHANNEL_ID}/feeds.json`;
-      const params = new URLSearchParams({ results: "1", api_key: CONFIG.READ_API_KEY });
-      const url = `${base}?${params.toString()}`;
+    async function fetchFieldLast(fieldNo){
+      // Robust: hole den letzten Wert UNABHÄNGIG von den anderen Feldern
+      const base = `https://api.thingspeak.com/channels/${CONFIG.CHANNEL_ID}/fields/${fieldNo}`;
+      const q = `api_key=${encodeURIComponent(CONFIG.READ_API_KEY)}&results=1`;
       try {
+        // prefer JSON list (stabil auf allen Plänen)
+        const url = `${base}.json?${q}`;
         const r = await fetch(url);
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        if(!r.ok) throw new Error(`HTTP ${r.status}`);
         const data = await r.json();
-        if (!data.feeds || !data.feeds.length) return;
-        applyData(data.feeds.at(-1));
-      } catch (e) {
-        console.error(e);
-      }
+        if(data && data.feeds && data.feeds.length){
+          const feed = data.feeds[data.feeds.length-1];
+          const key = `field${fieldNo}`;
+          return feed[key];
+        }
+      } catch(e){ console.warn('fetchFieldLast', fieldNo, e); }
+      return null;
     }
 
-    function num(x){ const v = parseFloat(x); return Number.isFinite(v) ? v : NaN; }
-
-    function applyData(feed){
+    async function fetchAll(){
       const F = CONFIG.FIELD_MAPPING;
-      const tIn  = num(feed[F.tempInC]);
-      const hIn  = num(feed[F.humInPct]);
-      const tOut = num(feed[F.tempOutC]);
-      const hOut = num(feed[F.humOutPct]);
-      const uv   = num(feed[F.uvIndex]);
-
-      document.getElementById("tempInValue").textContent  = Number.isFinite(tIn)  ? `${tIn.toFixed(CONFIG.DECIMALS_TEMP)} °C` : "-- °C";
-      document.getElementById("humInValue").textContent   = Number.isFinite(hIn)  ? `${hIn.toFixed(CONFIG.DECIMALS_HUM)} %`  : "-- %";
-      document.getElementById("tempOutValue").textContent = Number.isFinite(tOut) ? `${tOut.toFixed(CONFIG.DECIMALS_TEMP)} °C`: "-- °C";
-      document.getElementById("humOutValue").textContent  = Number.isFinite(hOut) ? `${hOut.toFixed(CONFIG.DECIMALS_HUM)} %`  : "-- %";
-      document.getElementById("uvValue").textContent      = Number.isFinite(uv)   ? `UV – ${uv.toFixed(1)}` : "UV – --";
-
-      // Nachtmodus via UV
-      const sky  = document.getElementById("sky");
-      const sun  = document.getElementById("sunGroup");
-      const moon = document.getElementById("moonGroup");
-      const isNight = Number.isFinite(uv) ? (uv <= CONFIG.UV_NIGHT_THRESHOLD) : false;
-      if (isNight) {
-        sky.setAttribute("fill","url(#skyGradNight)");
-        if (sun)  sun.setAttribute("opacity","0");
-        if (moon) moon.setAttribute("opacity","1");
-      } else {
-        sky.setAttribute("fill","url(#skyGradDay)");
-        if (sun)  sun.setAttribute("opacity","1");
-        if (moon) moon.setAttribute("opacity","0");
-      }
-
-      // Timestamp
-      const ts = feed.created_at || new Date().toISOString();
-      document.getElementById("timestamp").textContent = `Letzte Aktualisierung: ${new Date(ts).toLocaleString()}`;
+      const [tIn, hIn, tOut, hOut, uv] = await Promise.all([
+        fetchFieldLast(F.tempInC),
+        fetchFieldLast(F.humInPct),
+        fetchFieldLast(F.tempOutC),
+        fetchFieldLast(F.humOutPct),
+        fetchFieldLast(F.uvIndex),
+      ]);
+      applyValues({ tIn, hIn, tOut, hOut, uv });
     }
 
-    fetchFromThingSpeak();
-    setInterval(fetchFromThingSpeak, 60000);
+    function num(x){ const v = parseFloat(x); return Number.isFinite(v)? v : NaN; }
+
+    function applyValues({ tIn, hIn, tOut, hOut, uv }){
+      const n_tIn  = num(tIn);
+      const n_hIn  = num(hIn);
+      const n_tOut = num(tOut);
+      const n_hOut = num(hOut);
+      const n_uv   = num(uv);
+
+      document.getElementById('tempInValue').textContent  = Number.isFinite(n_tIn)  ? `${n_tIn.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '-- °C';
+      document.getElementById('humInValue').textContent   = Number.isFinite(n_hIn)  ? `${n_hIn.toFixed(CONFIG.DECIMALS_HUM)} %`  : '-- %';
+      document.getElementById('tempOutValue').textContent = Number.isFinite(n_tOut) ? `${n_tOut.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '-- °C';
+      document.getElementById('humOutValue').textContent  = Number.isFinite(n_hOut) ? `${n_hOut.toFixed(CONFIG.DECIMALS_HUM)} %`  : '-- %';
+      document.getElementById('uvValue').textContent      = Number.isFinite(n_uv)   ? `UV – ${n_uv.toFixed(1)}` : 'UV – --';
+
+      const sky  = document.getElementById('sky');
+      const sun  = document.getElementById('sunGroup');
+      const moon = document.getElementById('moonGroup');
+      const isNight = Number.isFinite(n_uv) ? (n_uv <= CONFIG.UV_NIGHT_THRESHOLD) : false;
+      if(isNight){
+        sky.setAttribute('fill','url(#skyGradNight)');
+        if(sun)  sun.setAttribute('opacity','0');
+        if(moon) moon.setAttribute('opacity','1');
+      } else {
+        sky.setAttribute('fill','url(#skyGradDay)');
+        if(sun)  sun.setAttribute('opacity','1');
+        if(moon) moon.setAttribute('opacity','0');
+      }
+
+      // Zeitstempel aus dem Moment des Abrufs
+      document.getElementById('timestamp').textContent = `Letzte Aktualisierung: ${new Date().toLocaleString()}`;
+    }
+
+    fetchAll();
+    setInterval(fetchAll, 60000);
   </script>
 </body>
 </html>
