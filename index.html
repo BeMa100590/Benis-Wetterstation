@@ -143,35 +143,36 @@
     const CONFIG = {
       CHANNEL_ID: "3043993",
       READ_API_KEY: "5QKSO8HZ6BNPFTDE",
-      FIELD_MAPPING: {
-        tempInC:  1,
-        humInPct: 2,
-        tempOutC: 3,
-        humOutPct: 4,
-        uvIndex:  5
-      },
+      FIELD_MAPPING: { tempInC: 1, humInPct: 2, tempOutC: 3, humOutPct: 4, uvIndex: 5 },
       UV_NIGHT_THRESHOLD: 0.1,
       DECIMALS_TEMP: 1,
       DECIMALS_HUM: 0
     };
 
-    const lastValues = { tIn: null, hIn: null, tOut: null, hOut: null, uv: null };
+    // ---- Cache der letzten bekannten Werte (auch über Reload, per localStorage) ----
+    const lastValues = JSON.parse(localStorage.getItem('lastValues')||'{"tIn":null,"hIn":null,"tOut":null,"hOut":null,"uv":null}');
+
+    function validNumberLike(v){
+      if (v === null || v === undefined) return false;
+      if (typeof v === 'string' && v.trim() === '') return false;
+      const n = parseFloat(v);
+      return Number.isFinite(n);
+    }
 
     async function fetchFieldLast(fieldNo){
       const base = `https://api.thingspeak.com/channels/${CONFIG.CHANNEL_ID}/fields/${fieldNo}`;
       const q = `api_key=${encodeURIComponent(CONFIG.READ_API_KEY)}&results=1`;
+      const url = `${base}.json?${q}`;
       try {
-        const url = `${base}.json?${q}`;
-        const r = await fetch(url);
+        const r = await fetch(url, { cache: 'no-store' });
         if(!r.ok) throw new Error(`HTTP ${r.status}`);
         const data = await r.json();
         if(data && data.feeds && data.feeds.length){
           const feed = data.feeds[data.feeds.length-1];
-          const key = `field${fieldNo}`;
-          return feed[key];
+          return feed[`field${fieldNo}`];
         }
       } catch(e){ console.warn('fetchFieldLast', fieldNo, e); }
-      return null;
+      return undefined; // wichtig: undefined ≠ null/"" (wir unterscheiden unten)
     }
 
     async function fetchAll(){
@@ -189,11 +190,15 @@
     function num(x){ const v = parseFloat(x); return Number.isFinite(v)? v : NaN; }
 
     function applyValues({ tIn, hIn, tOut, hOut, uv }){
-      if(tIn) lastValues.tIn = tIn;
-      if(hIn) lastValues.hIn = hIn;
-      if(tOut) lastValues.tOut = tOut;
-      if(hOut) lastValues.hOut = hOut;
-      if(uv) lastValues.uv = uv;
+      // Nur dann überschreiben, wenn ein plausibler NEUER Wert geliefert wurde
+      if (validNumberLike(tIn))  lastValues.tIn  = tIn;
+      if (validNumberLike(hIn))  lastValues.hIn  = hIn;
+      if (validNumberLike(tOut)) lastValues.tOut = tOut;
+      if (validNumberLike(hOut)) lastValues.hOut = hOut;
+      if (validNumberLike(uv))   lastValues.uv   = uv;
+
+      // Persistieren
+      localStorage.setItem('lastValues', JSON.stringify(lastValues));
 
       const n_tIn  = num(lastValues.tIn);
       const n_hIn  = num(lastValues.hIn);
@@ -205,7 +210,7 @@
       document.getElementById('humInValue').textContent   = Number.isFinite(n_hIn)  ? `${n_hIn.toFixed(CONFIG.DECIMALS_HUM)} %`  : '-- %';
       document.getElementById('tempOutValue').textContent = Number.isFinite(n_tOut) ? `${n_tOut.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '-- °C';
       document.getElementById('humOutValue').textContent  = Number.isFinite(n_hOut) ? `${n_hOut.toFixed(CONFIG.DECIMALS_HUM)} %`  : '-- %';
-      document.getElementById('uvValue').textContent = Number.isFinite(n_uv) ? n_uv.toFixed(1) : '--';
+      document.getElementById('uvValue').textContent      = Number.isFinite(n_uv)   ? n_uv.toFixed(1) : '--';
 
       const sky  = document.getElementById('sky');
       const sun  = document.getElementById('sunGroup');
@@ -224,6 +229,8 @@
       document.getElementById('timestamp').textContent = `Letzte Aktualisierung: ${new Date().toLocaleString()}`;
     }
 
+    // Beim Start sofort die letzten gespeicherten Werte anzeigen, dann abrufen
+    applyValues({});
     fetchAll();
     setInterval(fetchAll, 60000);
   </script>
