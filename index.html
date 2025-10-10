@@ -18,7 +18,6 @@
   </style>
 </head>
 <body class="h-screen w-screen overflow-hidden bg-black text-slate-100 antialiased">
-  <!-- Obere Überschrift (schwarz) -->
   <div class="fixed inset-x-0 top-0 z-20 flex items-center justify-center px-4" style="padding-top: env(safe-area-inset-top);">
     <h1 class="text-lg font-bold text-black bg-white/70 px-3 py-1 rounded-xl">Beni`s Wetterstation</h1>
   </div>
@@ -42,7 +41,6 @@
           <stop offset="0%" stop-color="#f8fafc" />
           <stop offset="100%" stop-color="#e2e8f0" />
         </linearGradient>
-        <!-- Solarpanel-Gradient -->
         <linearGradient id="panelGrad" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stop-color="#60a5fa"/>
           <stop offset="100%" stop-color="#1e3a8a"/>
@@ -52,13 +50,9 @@
         </filter>
       </defs>
 
-      <!-- Himmel -->
       <rect id="sky" width="900" height="540" fill="url(#skyGradDay)" />
-
-      <!-- Wiese -->
       <rect x="0" y="500" width="900" height="40" fill="#bbf7d0"/>
 
-      <!-- Windrad -->
       <g id="windGroup" transform="translate(330,475)" filter="url(#shadow)">
         <line x1="0" y1="0" x2="0" y2="-90" stroke="#64748b" stroke-width="6"/>
         <g id="pinwheel" transform="translate(0,-90)">
@@ -73,7 +67,6 @@
         <text id="windValue" x="-10" y="22" text-anchor="start" font-size="18" font-weight="700" fill="#0f172a">Wind: --</text>
       </g>
 
-      <!-- Außenwerte (kompakt) -->
       <g id="outsidePanelLeft" transform="translate(300,165)" filter="url(#shadow)">
         <g id="windowTempOut" transform="translate(0,0)">
           <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
@@ -87,12 +80,10 @@
         </g>
       </g>
 
-      <!-- Haus (ohne Schornstein) + Solarpanel -->
       <g id="houseGroup" transform="translate(515,310) scale(0.85)" filter="url(#shadow)">
         <ellipse cx="0" cy="230" rx="140" ry="18" fill="#000" opacity="0.12" />
         <polygon points="-95,0 0,-100 95,0" fill="url(#roofGrad)" stroke="#f43f5e" stroke-width="2"/>
-        <!-- Solarpanel auf der linken Dachfläche -->
-        <g id="solar" transform="translate(-70,-10) rotate(-35)">
+        <g id="solar" transform="translate(-76,-6) rotate(-47)">
           <rect x="0" y="0" width="80" height="28" rx="4" fill="url(#panelGrad)" stroke="#0f172a" stroke-opacity=".25"/>
           <g opacity=".35" stroke="#93c5fd" stroke-width="1">
             <line x1="16" y1="4" x2="16" y2="24"/>
@@ -105,7 +96,6 @@
         </g>
         <rect x="-90" y="0" width="180" height="220" rx="16" ry="16" fill="url(#wallGrad)" stroke="#cbd5e1" stroke-width="2"/>
 
-        <!-- Innenwerte -->
         <g id="windowTempIn" transform="translate(-84,36)">
           <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
           <text id="tempInValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">-- °C</text>
@@ -117,24 +107,25 @@
           <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Innen Feuchte</text>
         </g>
 
-        <!-- Tür -->
         <g id="door" transform="translate(26,48)">
           <rect width="56" height="160" rx="12" ry="12" fill="#f59e0b" stroke="#a16207"/>
           <circle cx="42" cy="82" r="4" fill="#7c2d12"/>
         </g>
       </g>
 
-      <!-- Sonne & Wolke (verschachtelte Animationen, damit iOS die Position nicht überschreibt) -->
       <g id="sunGroup" transform="translate(375,100) scale(0.9)" filter="url(#shadow)">
         <g class="sunPulse">
           <circle r="45" fill="#ffd166" stroke="#d97706" stroke-width="2"/>
-          <text id="uvValue" x="0" y="8" text-anchor="middle" font-size="20" font-weight="700" fill="#7c4a00">UV – --</text>
+          <text id="uvLabel" x="0" y="-2" text-anchor="middle" font-size="14" font-weight="700" fill="#7c4a00">UV‑Index</text>
+          <text id="uvValue" x="0" y="20" text-anchor="middle" font-size="22" font-weight="800" fill="#7c4a00">--</text>
         </g>
       </g>
+
       <g id="moonGroup" transform="translate(375,100) scale(0.9)" opacity="0">
         <circle r="36" fill="#f1f5f9"/>
         <circle r="32" cx="8" cy="-5" fill="#0f2350" />
       </g>
+
       <g id="cloudGroup" transform="translate(500,105) scale(0.9)" filter="url(#shadow)">
         <g class="cloudFloat">
           <ellipse rx="58" ry="30" cx="0" cy="10" fill="#ffffff" stroke="#e2e8f0"/>
@@ -144,7 +135,6 @@
         </g>
       </g>
 
-      <!-- Timestamp unten -->
       <text id="timestamp" x="450" y="520" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: --</text>
     </svg>
   </main>
@@ -154,23 +144,23 @@
       CHANNEL_ID: "3043993",
       READ_API_KEY: "5QKSO8HZ6BNPFTDE",
       FIELD_MAPPING: {
-        tempInC:  1, // field1
-        humInPct: 2, // field2
-        tempOutC: 3, // field3
-        humOutPct: 4, // field4
-        uvIndex:  5  // field5
+        tempInC:  1,
+        humInPct: 2,
+        tempOutC: 3,
+        humOutPct: 4,
+        uvIndex:  5
       },
       UV_NIGHT_THRESHOLD: 0.1,
       DECIMALS_TEMP: 1,
       DECIMALS_HUM: 0
     };
 
+    const lastValues = { tIn: null, hIn: null, tOut: null, hOut: null, uv: null };
+
     async function fetchFieldLast(fieldNo){
-      // Robust: hole den letzten Wert UNABHÄNGIG von den anderen Feldern
       const base = `https://api.thingspeak.com/channels/${CONFIG.CHANNEL_ID}/fields/${fieldNo}`;
       const q = `api_key=${encodeURIComponent(CONFIG.READ_API_KEY)}&results=1`;
       try {
-        // prefer JSON list (stabil auf allen Plänen)
         const url = `${base}.json?${q}`;
         const r = await fetch(url);
         if(!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -199,17 +189,23 @@
     function num(x){ const v = parseFloat(x); return Number.isFinite(v)? v : NaN; }
 
     function applyValues({ tIn, hIn, tOut, hOut, uv }){
-      const n_tIn  = num(tIn);
-      const n_hIn  = num(hIn);
-      const n_tOut = num(tOut);
-      const n_hOut = num(hOut);
-      const n_uv   = num(uv);
+      if(tIn) lastValues.tIn = tIn;
+      if(hIn) lastValues.hIn = hIn;
+      if(tOut) lastValues.tOut = tOut;
+      if(hOut) lastValues.hOut = hOut;
+      if(uv) lastValues.uv = uv;
+
+      const n_tIn  = num(lastValues.tIn);
+      const n_hIn  = num(lastValues.hIn);
+      const n_tOut = num(lastValues.tOut);
+      const n_hOut = num(lastValues.hOut);
+      const n_uv   = num(lastValues.uv);
 
       document.getElementById('tempInValue').textContent  = Number.isFinite(n_tIn)  ? `${n_tIn.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '-- °C';
       document.getElementById('humInValue').textContent   = Number.isFinite(n_hIn)  ? `${n_hIn.toFixed(CONFIG.DECIMALS_HUM)} %`  : '-- %';
       document.getElementById('tempOutValue').textContent = Number.isFinite(n_tOut) ? `${n_tOut.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '-- °C';
       document.getElementById('humOutValue').textContent  = Number.isFinite(n_hOut) ? `${n_hOut.toFixed(CONFIG.DECIMALS_HUM)} %`  : '-- %';
-      document.getElementById('uvValue').textContent      = Number.isFinite(n_uv)   ? `UV – ${n_uv.toFixed(1)}` : 'UV – --';
+      document.getElementById('uvValue').textContent = Number.isFinite(n_uv) ? n_uv.toFixed(1) : '--';
 
       const sky  = document.getElementById('sky');
       const sun  = document.getElementById('sunGroup');
@@ -225,7 +221,6 @@
         if(moon) moon.setAttribute('opacity','0');
       }
 
-      // Zeitstempel aus dem Moment des Abrufs
       document.getElementById('timestamp').textContent = `Letzte Aktualisierung: ${new Date().toLocaleString()}`;
     }
 
