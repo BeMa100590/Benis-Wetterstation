@@ -114,15 +114,35 @@
         </g>
       </g>
 
-      <!-- UV / Mond -->
+      <!-- Sonne mit Strahlen -->
       <g id="sunGroup" transform="translate(375,100) scale(0.9)" filter="url(#shadow)">
         <g class="sunPulse">
+          <!-- Strahlen: zwei „Kränze“, langsam rotierend -->
+          <g class="spin" style="animation-duration:18s;">
+            <!-- dicker Kranz -->
+            <line x1="0" y1="-70" x2="0" y2="-90" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="0" y1="70" x2="0" y2="90" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="70" y1="0" x2="90" y2="0" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="-70" y1="0" x2="-90" y2="0" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="50" y1="-50" x2="65" y2="-65" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="-50" y1="-50" x2="-65" y2="-65" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="50" y1="50" x2="65" y2="65" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="-50" y1="50" x2="-65" y2="65" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <!-- dünner Kranz leicht versetzt -->
+            <line x1="25" y1="-70" x2="30" y2="-90" stroke="#fde68a" stroke-width="3" stroke-linecap="round"/>
+            <line x1="-25" y1="-70" x2="-30" y2="-90" stroke="#fde68a" stroke-width="3" stroke-linecap="round"/>
+            <line x1="25" y1="70" x2="30" y2="90" stroke="#fde68a" stroke-width="3" stroke-linecap="round"/>
+            <line x1="-25" y1="70" x2="-30" y2="90" stroke="#fde68a" stroke-width="3" stroke-linecap="round"/>
+          </g>
+
+          <!-- Sonnenscheibe + UV-Text -->
           <circle r="45" fill="#ffd166" stroke="#d97706" stroke-width="2"/>
           <text id="uvLabel" x="0" y="-2" text-anchor="middle" font-size="14" font-weight="700" fill="#7c4a00">UV-Index</text>
           <text id="uvValue" x="0" y="20" text-anchor="middle" font-size="22" font-weight="800" fill="#7c4a00">—</text>
         </g>
       </g>
 
+      <!-- Mond -->
       <g id="moonGroup" transform="translate(375,100) scale(0.9)" opacity="0">
         <circle r="36" fill="#f1f5f9"/>
         <circle r="32" cx="8" cy="-5" fill="#0f2350" />
@@ -184,7 +204,6 @@
       const r = await fetch(url, { cache: 'no-store' });
       if(!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
-      // d hat i.d.R. { created_at, fieldN, entry_id, ... }
       const value = d[`field${fieldNo}`];
       const ts = d.created_at;
       return { value, ts };
