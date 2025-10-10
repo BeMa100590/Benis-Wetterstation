@@ -7,8 +7,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     html, body { height: 100%; }
-    .blink { animation: blink 1.2s linear infinite; }
-    @keyframes blink { 50% { opacity: .4 } }
     .spin { animation: spin 1.4s linear infinite; }
     @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
     .sunPulse { animation: sunPulse 6s ease-in-out infinite; transform-origin: center; }
@@ -53,6 +51,7 @@
       <rect id="sky" width="900" height="540" fill="url(#skyGradDay)" />
       <rect x="0" y="500" width="900" height="40" fill="#bbf7d0"/>
 
+      <!-- (Deko) -->
       <g id="windGroup" transform="translate(330,475)" filter="url(#shadow)">
         <line x1="0" y1="0" x2="0" y2="-90" stroke="#64748b" stroke-width="6"/>
         <g id="pinwheel" transform="translate(0,-90)">
@@ -67,19 +66,21 @@
         <text id="windValue" x="-10" y="22" text-anchor="start" font-size="18" font-weight="700" fill="#0f172a">Wind: --</text>
       </g>
 
+      <!-- Außenwerte -->
       <g id="outsidePanelLeft" transform="translate(300,165)" filter="url(#shadow)">
         <g id="windowTempOut" transform="translate(0,0)">
           <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
-          <text id="tempOutValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">lädt…</text>
+          <text id="tempOutValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">—</text>
           <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Außen Temp</text>
         </g>
         <g id="windowHumOut" transform="translate(0,90)">
           <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
-          <text id="humOutValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">lädt…</text>
+          <text id="humOutValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">—</text>
           <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Außen Feuchte</text>
         </g>
       </g>
 
+      <!-- Haus & Innenwerte -->
       <g id="houseGroup" transform="translate(515,310) scale(0.85)" filter="url(#shadow)">
         <ellipse cx="0" cy="230" rx="140" ry="18" fill="#000" opacity="0.12" />
         <polygon points="-95,0 0,-100 95,0" fill="url(#roofGrad)" stroke="#f43f5e" stroke-width="2"/>
@@ -98,12 +99,12 @@
 
         <g id="windowTempIn" transform="translate(-84,36)">
           <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
-          <text id="tempInValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">lädt…</text>
+          <text id="tempInValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">—</text>
           <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Innen Temp</text>
         </g>
         <g id="windowHumIn" transform="translate(-84,130)">
           <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
-          <text id="humInValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">lädt…</text>
+          <text id="humInValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">—</text>
           <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Innen Feuchte</text>
         </g>
 
@@ -113,11 +114,12 @@
         </g>
       </g>
 
+      <!-- UV / Mond -->
       <g id="sunGroup" transform="translate(375,100) scale(0.9)" filter="url(#shadow)">
         <g class="sunPulse">
           <circle r="45" fill="#ffd166" stroke="#d97706" stroke-width="2"/>
           <text id="uvLabel" x="0" y="-2" text-anchor="middle" font-size="14" font-weight="700" fill="#7c4a00">UV-Index</text>
-          <text id="uvValue" x="0" y="20" text-anchor="middle" font-size="22" font-weight="800" fill="#7c4a00">lädt…</text>
+          <text id="uvValue" x="0" y="20" text-anchor="middle" font-size="22" font-weight="800" fill="#7c4a00">—</text>
         </g>
       </g>
 
@@ -126,6 +128,7 @@
         <circle r="32" cx="8" cy="-5" fill="#0f2350" />
       </g>
 
+      <!-- Wolke/Platzhalter -->
       <g id="cloudGroup" transform="translate(500,105) scale(0.9)" filter="url(#shadow)">
         <g class="cloudFloat">
           <ellipse rx="58" ry="30" cx="0" cy="10" fill="#ffffff" stroke="#e2e8f0"/>
@@ -135,76 +138,107 @@
         </g>
       </g>
 
-      <text id="timestamp" x="450" y="520" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: --</text>
+      <text id="timestamp" x="450" y="520" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: —</text>
       <text id="status" x="12" y="528" text-anchor="start" font-size="12" fill="#64748b">Status: Initialisierung…</text>
     </svg>
   </main>
 
   <script>
+    // ===================== CONFIG =====================
     const CONFIG = {
-      CHANNEL_ID: "3043993",
-      READ_API_KEY: "5QKSO8HZ6BNPFTDE",
-      FIELD_MAPPING: { tempInC: 1, humInPct: 2, tempOutC: 3, humOutPct: 4, uvIndex: 5 },
+      // Innen-Sensor (ESP32 #1)
+      INSIDE: {
+        CHANNEL_ID: "3043993",                 // <--- ggf. anpassen
+        READ_API_KEY: "5QKSO8HZ6BNPFTDE",      // <--- ggf. anpassen
+        FIELDS: { tempC: 1, humPct: 2 }        // Feldnummern für Innen
+      },
+      // Außen-Sensor (ESP32 #2)
+      OUTSIDE: {
+        CHANNEL_ID: "3043993",                 // <--- ggf. anpassen (kann auch derselbe Channel sein)
+        READ_API_KEY: "5QKSO8HZ6BNPFTDE",      // <--- ggf. anpassen
+        FIELDS: { tempC: 3, humPct: 4, uvIndex: 5 } // Feldnummern für Außen
+      },
       UV_NIGHT_THRESHOLD: 0.1,
       DECIMALS_TEMP: 1,
       DECIMALS_HUM: 0,
-      POLL_MS: 60000           // Intervall für Updates
+      POLL_MS: 60000
     };
 
-    // ---- einfacher Persistenz-Cache (für schnelle Anzeige bei Reloads) ----
-    const CACHE_KEY = 'lastValues_v2';
-    const lastValues = JSON.parse(localStorage.getItem(CACHE_KEY) || '{"tIn":null,"hIn":null,"tOut":null,"hOut":null,"uv":null,"ts":null}');
+    // ============== kleiner Cache (für schnelles Paint) ==============
+    const CACHE_KEY = 'lastValues_multiChannel_v1';
+    const lastValues = JSON.parse(localStorage.getItem(CACHE_KEY) || JSON.stringify({
+      inTemp: null, inHum: null,
+      outTemp: null, outHum: null,
+      uv: null,
+      tsInTemp: null, tsInHum: null, tsOutTemp: null, tsOutHum: null, tsUv: null
+    }));
     const statusEl = document.getElementById('status');
 
-    function validNumberLike(v){
-      if (v === null || v === undefined) return false;
-      if (typeof v === 'string' && v.trim() === '') return false;
-      const n = parseFloat(v);
-      return Number.isFinite(n);
-    }
-    function num(x){ const v = parseFloat(x); return Number.isFinite(v)? v : NaN; }
+    function setStatus(msg){ if(statusEl) statusEl.textContent = `Status: ${msg}`; }
+    function validNumberLike(v){ if(v===null||v===undefined) return false; if(typeof v==='string' && v.trim()==='') return false; const n=parseFloat(v); return Number.isFinite(n); }
+    function num(x){ const v=parseFloat(x); return Number.isFinite(v)? v : NaN; }
 
-    // Alle Felder in einem Rutsch holen (letzter Datensatz)
-    async function fetchLastEntry(){
-      const url = `https://api.thingspeak.com/channels/${CONFIG.CHANNEL_ID}/feeds/last.json?api_key=${encodeURIComponent(CONFIG.READ_API_KEY)}`;
+    // ---- Helper: pro Feld letzten Wert holen (egal, wann zuletzt gepostet)
+    async function fetchFieldLast(channelId, apiKey, fieldNo){
+      const url = `https://api.thingspeak.com/channels/${channelId}/fields/${fieldNo}/last.json?api_key=${encodeURIComponent(apiKey)}`;
       const r = await fetch(url, { cache: 'no-store' });
       if(!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
-      return {
-        tIn:  d[`field${CONFIG.FIELD_MAPPING.tempInC}`],
-        hIn:  d[`field${CONFIG.FIELD_MAPPING.humInPct}`],
-        tOut: d[`field${CONFIG.FIELD_MAPPING.tempOutC}`],
-        hOut: d[`field${CONFIG.FIELD_MAPPING.humOutPct}`],
-        uv:   d[`field${CONFIG.FIELD_MAPPING.uvIndex}`],
-        ts:   d.created_at
-      };
+      // d hat i.d.R. { created_at, fieldN, entry_id, ... }
+      const value = d[`field${fieldNo}`];
+      const ts = d.created_at;
+      return { value, ts };
     }
 
-    function setStatus(msg){ if(statusEl) statusEl.textContent = `Status: ${msg}`; }
+    async function fetchInside(){
+      const { CHANNEL_ID, READ_API_KEY, FIELDS } = CONFIG.INSIDE;
+      const promises = [];
+      if(FIELDS.tempC) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.tempC).then(r => ({ key:'inTemp', tsKey:'tsInTemp', ...r })).catch(()=>null));
+      if(FIELDS.humPct) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.humPct).then(r => ({ key:'inHum', tsKey:'tsInHum', ...r })).catch(()=>null));
+      const results = (await Promise.all(promises)).filter(Boolean);
+      return results;
+    }
 
-    function applyValues({ tIn, hIn, tOut, hOut, uv, ts }){
-      // nur überschreiben, wenn plausible neue Werte kommen
-      if (validNumberLike(tIn))  lastValues.tIn  = tIn;
-      if (validNumberLike(hIn))  lastValues.hIn  = hIn;
-      if (validNumberLike(tOut)) lastValues.tOut = tOut;
-      if (validNumberLike(hOut)) lastValues.hOut = hOut;
-      if (validNumberLike(uv))   lastValues.uv   = uv;
-      if (ts)                    lastValues.ts   = ts;
+    async function fetchOutside(){
+      const { CHANNEL_ID, READ_API_KEY, FIELDS } = CONFIG.OUTSIDE;
+      const promises = [];
+      if(FIELDS.tempC) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.tempC).then(r => ({ key:'outTemp', tsKey:'tsOutTemp', ...r })).catch(()=>null));
+      if(FIELDS.humPct) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.humPct).then(r => ({ key:'outHum', tsKey:'tsOutHum', ...r })).catch(()=>null));
+      if(FIELDS.uvIndex) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.uvIndex).then(r => ({ key:'uv', tsKey:'tsUv', ...r })).catch(()=>null));
+      const results = (await Promise.all(promises)).filter(Boolean);
+      return results;
+    }
 
+    function applyValuesFromResults(results){
+      let newestTs = null;
+
+      for(const r of results){
+        if(!r) continue;
+        const { key, tsKey, value, ts } = r;
+        if(validNumberLike(value)){
+          lastValues[key] = value;
+          lastValues[tsKey] = ts || lastValues[tsKey];
+        }
+        if(ts && (!newestTs || new Date(ts) > new Date(newestTs))) newestTs = ts;
+      }
+
+      // persist
       localStorage.setItem(CACHE_KEY, JSON.stringify(lastValues));
 
-      const n_tIn  = num(lastValues.tIn);
-      const n_hIn  = num(lastValues.hIn);
-      const n_tOut = num(lastValues.tOut);
-      const n_hOut = num(lastValues.hOut);
+      // render
+      const n_inT  = num(lastValues.inTemp);
+      const n_inH  = num(lastValues.inHum);
+      const n_outT = num(lastValues.outTemp);
+      const n_outH = num(lastValues.outHum);
       const n_uv   = num(lastValues.uv);
 
-      document.getElementById('tempInValue').textContent  = Number.isFinite(n_tIn)  ? `${n_tIn.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '—';
-      document.getElementById('humInValue').textContent   = Number.isFinite(n_hIn)  ? `${n_hIn.toFixed(CONFIG.DECIMALS_HUM)} %`  : '—';
-      document.getElementById('tempOutValue').textContent = Number.isFinite(n_tOut) ? `${n_tOut.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '—';
-      document.getElementById('humOutValue').textContent  = Number.isFinite(n_hOut) ? `${n_hOut.toFixed(CONFIG.DECIMALS_HUM)} %`  : '—';
+      document.getElementById('tempInValue').textContent  = Number.isFinite(n_inT)  ? `${n_inT.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '—';
+      document.getElementById('humInValue').textContent   = Number.isFinite(n_inH)  ? `${n_inH.toFixed(CONFIG.DECIMALS_HUM)} %`  : '—';
+      document.getElementById('tempOutValue').textContent = Number.isFinite(n_outT) ? `${n_outT.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '—';
+      document.getElementById('humOutValue').textContent  = Number.isFinite(n_outH) ? `${n_outH.toFixed(CONFIG.DECIMALS_HUM)} %`  : '—';
       document.getElementById('uvValue').textContent      = Number.isFinite(n_uv)   ? n_uv.toFixed(1) : '—';
 
+      // Himmel/Sonne/Mond je nach UV
       const sky  = document.getElementById('sky');
       const sun  = document.getElementById('sunGroup');
       const moon = document.getElementById('moonGroup');
@@ -219,41 +253,38 @@
         if(moon) moon.setAttribute('opacity','0');
       }
 
-      const stamp = lastValues.ts ? new Date(lastValues.ts).toLocaleString() : new Date().toLocaleString();
-      document.getElementById('timestamp').textContent = `Letzte Aktualisierung: ${stamp}`;
+      // Zeitstempel (neuester der eingegangenen Messwerte)
+      const stamp = newestTs || lastValues.tsUv || lastValues.tsOutTemp || lastValues.tsOutHum || lastValues.tsInTemp || lastValues.tsInHum;
+      document.getElementById('timestamp').textContent = `Letzte Aktualisierung: ${ stamp ? new Date(stamp).toLocaleString() : '—' }`;
     }
 
-    // Sofort: falls Cache existiert, zeige den (schnelleres erstes Paint)
-    applyValues({});
+    // Erstmal Cache zeichnen (falls vorhanden)
+    applyValuesFromResults([]);
 
-    // Bootstrap: direkt letzten Serverwert zeichnen, dann poll’en
+    // Bootstrap & Polling
     (async function bootstrap(){
       try{
-        setStatus('Hole letzten Wert von ThingSpeak …');
-        const initial = await fetchLastEntry();
-        applyValues(initial);
+        setStatus('Hole letzte Innen-/Außenwerte …');
+        const [inRes, outRes] = await Promise.all([fetchInside(), fetchOutside()]);
+        applyValuesFromResults([...inRes, ...outRes]);
         setStatus('Live');
       }catch(e){
         console.warn('Initial fetch failed:', e);
         setStatus('Fehler beim Laden – zeige Cache (falls vorhanden)');
       }
 
-      // Polling-Schleife mit einfachem Backoff bei Fehlern
+      // Poll-Schleife (mit einfachem Backoff bei Fehlern)
       let delay = CONFIG.POLL_MS;
       async function tick(){
         try{
-          const data = await fetchLastEntry();
-          // Nur updaten, wenn neuer Zeitstempel
-          if(!lastValues.ts || (data.ts && data.ts !== lastValues.ts)){
-            applyValues(data);
-          }
+          const [inRes, outRes] = await Promise.all([fetchInside(), fetchOutside()]);
+          applyValuesFromResults([...inRes, ...outRes]);
           setStatus('Live');
-          delay = CONFIG.POLL_MS; // reset Backoff
+          delay = CONFIG.POLL_MS;
         }catch(err){
           console.warn('Poll error:', err);
           setStatus('Verbindungsproblem – neuer Versuch');
-          // einfacher exponentieller Backoff bis max 5 Minuten
-          delay = Math.min(delay * 2, 300000);
+          delay = Math.min(delay * 2, 300000); // max 5 min
         }finally{
           setTimeout(tick, delay);
         }
