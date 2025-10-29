@@ -99,7 +99,7 @@
         </g>
       </g>
 
-      <!-- Sonne mit Strahlen -->
+      <!-- Sonne -->
       <g id="sunGroup" transform="translate(375,100) scale(0.9)" filter="url(#shadow)">
         <g class="sunPulse">
           <g class="spin" style="animation-duration:18s;">
@@ -138,16 +138,13 @@
         </g>
       </g>
 
-      <!-- Zeitinfos -->
-      <text id="timestamp" x="450" y="520" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: —</text>
-      <text id="status" x="12" y="528" text-anchor="start" font-size="12" fill="#64748b">Status: Initialisierung…</text>
-
-      <!-- Windrad + Wind-Fenster (ganz vorne, eindeutige IDs) -->
-      <g id="windBlock" transform="translate(240,472)" filter="url(#shadow)">
-        <!-- Mast -->
-        <line x1="0" y1="0" x2="0" y2="-90" stroke="#64748b" stroke-width="6"/>
+      <!-- Windrad + Wind-Fenster (unter Außenwerten, Wert über dem grünen Balken) -->
+      <!-- outsidePanelLeft: x=300, Fensterbreite 92 -> Mitte ≈ 346 -->
+      <g id="windBlock" transform="translate(346,390)" filter="url(#shadow)">
+        <!-- Mast (gekürzt) -->
+        <line x1="0" y1="0" x2="0" y2="-70" stroke="#64748b" stroke-width="6"/>
         <!-- Rotor -->
-        <g id="pinwheel" transform="translate(0,-90)">
+        <g id="pinwheel" transform="translate(0,-70)">
           <circle r="6" fill="#64748b"/>
           <g id="vanes" class="spin">
             <path d="M0,0 L0,-28 Q12,-22 16,-10 Z" fill="#94a3b8"/>
@@ -156,120 +153,92 @@
             <path d="M0,0 L-28,0 Q-22,-12 -10,-16 Z" fill="#94a3b8"/>
           </g>
         </g>
-        <!-- Fenster für Windanzeige -->
-        <g id="windowWind" transform="translate(-46,12)">
+        <!-- Windwert-Fenster (liegt bei y=390+8..+80 -> endet bei 478 < 500) -->
+        <g id="windowWind" transform="translate(-46,8)">
           <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
           <text id="windValueText" x="46" y="44" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">—</text>
           <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Wind</text>
         </g>
       </g>
+
+      <text id="timestamp" x="450" y="520" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: —</text>
+      <text id="status" x="12" y="528" text-anchor="start" font-size="12" fill="#64748b">Status: Initialisierung…</text>
     </svg>
   </main>
 
   <script>
     (function(){
       try{
-        // ===================== CONFIG =====================
         const CONFIG = {
-          INSIDE: {
-            CHANNEL_ID: "3043993",
-            READ_API_KEY: "5QKSO8HZ6BNPFTDE",
-            FIELDS: { tempC: 1, humPct: 2 }
-          },
-          OUTSIDE: {
-            CHANNEL_ID: "3043993",
-            READ_API_KEY: "5QKSO8HZ6BNPFTDE",
-            FIELDS: { tempC: 3, humPct: 4, uvIndex: 5, windKmh: 6 } // Field 6: Wind
-          },
+          INSIDE: { CHANNEL_ID: "3043993", READ_API_KEY: "5QKSO8HZ6BNPFTDE", FIELDS: { tempC: 1, humPct: 2 } },
+          OUTSIDE:{ CHANNEL_ID: "3043993", READ_API_KEY: "5QKSO8HZ6BNPFTDE", FIELDS: { tempC: 3, humPct: 4, uvIndex: 5, windKmh: 6 } },
           UV_NIGHT_THRESHOLD: 0.1,
-          DECIMALS_TEMP: 1,
-          DECIMALS_HUM: 0,
-          DECIMALS_WIND: 1,
-          WIND_IS_MPS: false,  // true = Field 6 in m/s -> wird zu km/h umgerechnet
+          DECIMALS_TEMP: 1, DECIMALS_HUM: 0, DECIMALS_WIND: 1,
+          WIND_IS_MPS: false,
           POLL_MS: 60000
         };
 
-        // ============== Cache ==============
         const CACHE_KEY = 'lastValues_multiChannel_v2';
-        const defaultCache = {
-          inTemp: null, inHum: null,
-          outTemp: null, outHum: null,
-          uv: null,
-          windKmh: null,
-          tsInTemp: null, tsInHum: null, tsOutTemp: null, tsOutHum: null, tsUv: null, tsWind: null
-        };
+        const defaultCache = { inTemp:null,inHum:null,outTemp:null,outHum:null,uv:null,windKmh:null,
+          tsInTemp:null,tsInHum:null,tsOutTemp:null,tsOutHum:null,tsUv:null,tsWind:null };
         const lastValues = Object.assign({}, defaultCache,
-          JSON.parse(localStorage.getItem(CACHE_KEY) || JSON.stringify(defaultCache))
-        );
+          JSON.parse(localStorage.getItem(CACHE_KEY) || JSON.stringify(defaultCache)));
 
         const statusEl = document.getElementById('status');
-        function setStatus(msg){ if(statusEl) statusEl.textContent = `Status: ${msg}`; }
-        function validNumberLike(v){ if(v===null||v===undefined) return false; if(typeof v==='string' && v.trim()==='') return false; const n=parseFloat(v); return Number.isFinite(n); }
-        function num(x){ const v=parseFloat(x); return Number.isFinite(v)? v : NaN; }
+        const setStatus = m => { if(statusEl) statusEl.textContent = `Status: ${m}`; };
+        const validNumberLike = v => !(v==null || (typeof v==='string' && v.trim()==='')) && Number.isFinite(parseFloat(v));
+        const num = x => { const v=parseFloat(x); return Number.isFinite(v)?v:NaN; };
 
-        // ---- Helper: pro Feld letzten Wert holen
         async function fetchFieldLast(channelId, apiKey, fieldNo){
           const url = `https://api.thingspeak.com/channels/${channelId}/fields/${fieldNo}/last.json?api_key=${encodeURIComponent(apiKey)}`;
           const r = await fetch(url, { cache: 'no-store' });
           if(!r.ok) throw new Error(`HTTP ${r.status}`);
           const d = await r.json();
-          const value = d[`field${fieldNo}`];
-          const ts = d.created_at;
-          return { value, ts };
+          return { value: d[`field${fieldNo}`], ts: d.created_at };
         }
 
         async function fetchInside(){
           const { CHANNEL_ID, READ_API_KEY, FIELDS } = CONFIG.INSIDE;
-          const promises = [];
-          if(FIELDS.tempC) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.tempC).then(r => ({ key:'inTemp', tsKey:'tsInTemp', ...r })).catch(()=>null));
-          if(FIELDS.humPct) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.humPct).then(r => ({ key:'inHum', tsKey:'tsInHum', ...r })).catch(()=>null));
-          return (await Promise.all(promises)).filter(Boolean);
+          const p = [];
+          if(FIELDS.tempC) p.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.tempC).then(r=>({key:'inTemp',tsKey:'tsInTemp',...r})).catch(()=>null));
+          if(FIELDS.humPct) p.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.humPct).then(r=>({key:'inHum', tsKey:'tsInHum', ...r})).catch(()=>null));
+          return (await Promise.all(p)).filter(Boolean);
         }
 
         async function fetchOutside(){
           const { CHANNEL_ID, READ_API_KEY, FIELDS } = CONFIG.OUTSIDE;
-          const promises = [];
-          if(FIELDS.tempC)   promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.tempC).then(r   => ({ key:'outTemp', tsKey:'tsOutTemp', ...r })).catch(()=>null));
-          if(FIELDS.humPct)  promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.humPct).then(r  => ({ key:'outHum',  tsKey:'tsOutHum',  ...r })).catch(()=>null));
-          if(FIELDS.uvIndex) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.uvIndex).then(r => ({ key:'uv',      tsKey:'tsUv',     ...r })).catch(()=>null));
-          if(FIELDS.windKmh) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.windKmh).then(r => ({ key:'windKmh', tsKey:'tsWind',   ...r })).catch(()=>null));
-          return (await Promise.all(promises)).filter(Boolean);
+          const p = [];
+          if(FIELDS.tempC)   p.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.tempC).then(r=>({key:'outTemp', tsKey:'tsOutTemp', ...r})).catch(()=>null));
+          if(FIELDS.humPct)  p.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.humPct).then(r=>({key:'outHum',  tsKey:'tsOutHum',  ...r})).catch(()=>null));
+          if(FIELDS.uvIndex) p.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.uvIndex).then(r=>({key:'uv',      tsKey:'tsUv',     ...r})).catch(()=>null));
+          if(FIELDS.windKmh) p.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.windKmh).then(r=>({key:'windKmh', tsKey:'tsWind',   ...r})).catch(()=>null));
+          return (await Promise.all(p)).filter(Boolean);
         }
 
         function applyValuesFromResults(results){
           let newestTs = null;
-
           for(const r of results){
             if(!r) continue;
             const { key, tsKey, value, ts } = r;
-            if(validNumberLike(value)){
-              lastValues[key] = value;
-              lastValues[tsKey] = ts || lastValues[tsKey];
-            }
+            if(validNumberLike(value)){ lastValues[key] = value; lastValues[tsKey] = ts || lastValues[tsKey]; }
             if(ts && (!newestTs || new Date(ts) > new Date(newestTs))) newestTs = ts;
           }
-
-          // persist
           localStorage.setItem(CACHE_KEY, JSON.stringify(lastValues));
 
-          // render numbers
-          const n_inT   = num(lastValues.inTemp);
-          const n_inH   = num(lastValues.inHum);
-          const n_outT  = num(lastValues.outTemp);
-          const n_outH  = num(lastValues.outHum);
-          const n_uv    = num(lastValues.uv);
-          let   n_wind  = num(lastValues.windKmh);
-
-          if(Number.isFinite(n_wind) && CONFIG.WIND_IS_MPS){
-            n_wind = n_wind * 3.6; // m/s -> km/h
-          }
+          const n_inT  = num(lastValues.inTemp);
+          const n_inH  = num(lastValues.inHum);
+          const n_outT = num(lastValues.outTemp);
+          const n_outH = num(lastValues.outHum);
+          const n_uv   = num(lastValues.uv);
+          let n_wind   = num(lastValues.windKmh);
+          if(Number.isFinite(n_wind) && CONFIG.WIND_IS_MPS) n_wind *= 3.6;
 
           const tempInValue  = document.getElementById('tempInValue');
           const humInValue   = document.getElementById('humInValue');
           const tempOutValue = document.getElementById('tempOutValue');
           const humOutValue  = document.getElementById('humOutValue');
           const uvValue      = document.getElementById('uvValue');
-          const windText     = document.getElementById('windValueText'); // <- eindeutige ID
+          const windText     = document.getElementById('windValueText');
 
           if(tempInValue)  tempInValue.textContent  = Number.isFinite(n_inT)  ? `${n_inT.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '—';
           if(humInValue)   humInValue.textContent   = Number.isFinite(n_inH)  ? `${n_inH.toFixed(CONFIG.DECIMALS_HUM)} %`  : '—';
@@ -278,44 +247,31 @@
           if(uvValue)      uvValue.textContent      = Number.isFinite(n_uv)   ? n_uv.toFixed(1) : '—';
           if(windText)     windText.textContent     = Number.isFinite(n_wind) ? `${n_wind.toFixed(CONFIG.DECIMALS_WIND)} km/h` : '—';
 
-          // Windrad-Geschwindigkeit
           const vanes = document.getElementById('vanes');
           if(vanes){
-            let dur = 1.4; // Default
+            let dur = 1.4;
             if(Number.isFinite(n_wind)){
               const w = Math.min(Math.max(n_wind, 0), 120);
-              dur = Math.max(0.6, 6 - (w * 0.045)); // 0 km/h ~6s -> 120 km/h ~0.6s
+              dur = Math.max(0.6, 6 - (w * 0.045));
             }
             vanes.style.animationDuration = `${dur}s`;
           }
 
-          // Himmel: Tag/Nacht
           const sky  = document.getElementById('sky');
           const sun  = document.getElementById('sunGroup');
           const moon = document.getElementById('moonGroup');
           const isNight = Number.isFinite(n_uv) ? (n_uv <= CONFIG.UV_NIGHT_THRESHOLD) : false;
-          if(sky){
-            sky.setAttribute('fill', isNight ? 'url(#skyGradNight)' : 'url(#skyGradDay)');
-          }
+          if(sky)  sky.setAttribute('fill', isNight ? 'url(#skyGradNight)' : 'url(#skyGradDay)');
           if(sun)  sun.setAttribute('opacity', isNight ? '0' : '1');
           if(moon) moon.setAttribute('opacity', isNight ? '1' : '0');
 
-          // Zeitstempel
-          const stamp = newestTs
-            || lastValues.tsUv
-            || lastValues.tsOutTemp
-            || lastValues.tsOutHum
-            || lastValues.tsInTemp
-            || lastValues.tsInHum
-            || lastValues.tsWind;
+          const stamp = newestTs || lastValues.tsUv || lastValues.tsOutTemp || lastValues.tsOutHum || lastValues.tsInTemp || lastValues.tsInHum || lastValues.tsWind;
           const tsEl = document.getElementById('timestamp');
           if(tsEl) tsEl.textContent = `Letzte Aktualisierung: ${ stamp ? new Date(stamp).toLocaleString() : '—' }`;
         }
 
-        // Erstmal Cache zeichnen (falls vorhanden)
         applyValuesFromResults([]);
 
-        // Bootstrap & Polling
         (async function bootstrap(){
           try{
             setStatus('Hole letzte Innen-/Außenwerte …');
@@ -337,7 +293,7 @@
             }catch(err){
               console.warn('Poll error:', err);
               setStatus('Verbindungsproblem – neuer Versuch');
-              delay = Math.min(delay * 2, 300000); // max 5 min
+              delay = Math.min(delay * 2, 300000);
             }finally{
               setTimeout(tick, delay);
             }
