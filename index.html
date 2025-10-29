@@ -1,190 +1,348 @@
-<script>
-  // ===================== CONFIG =====================
-  const CONFIG = {
-    // Innen-Sensor (ESP32 #1)
-    INSIDE: {
-      CHANNEL_ID: "3043993",                 // <--- ggf. anpassen
-      READ_API_KEY: "5QKSO8HZ6BNPFTDE",      // <--- ggf. anpassen
-      FIELDS: { tempC: 1, humPct: 2 }        // Feldnummern für Innen
-    },
-    // Außen-Sensor (ESP32 #2)
-    OUTSIDE: {
-      CHANNEL_ID: "3043993",                 // <--- ggf. anpassen
-      READ_API_KEY: "5QKSO8HZ6BNPFTDE",      // <--- ggf. anpassen
-      FIELDS: { tempC: 3, humPct: 4, uvIndex: 5, windKmh: 6 } // <-- Field 6 für Wind
-    },
-    UV_NIGHT_THRESHOLD: 0.1,
-    DECIMALS_TEMP: 1,
-    DECIMALS_HUM: 0,
-    DECIMALS_WIND: 1,                         // Anzeigepräzision Wind
-    WIND_IS_MPS: false,                       // auf true setzen, falls Field 6 in m/s kommt
-    POLL_MS: 60000
-  };
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Beni`s Wetterstation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body { height: 100%; }
+    .spin { animation: spin 1.4s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+    .sunPulse { animation: sunPulse 6s ease-in-out infinite; transform-origin: center; }
+    @keyframes sunPulse { 0%,100% { transform: scale(1); opacity: 1 } 50% { transform: scale(1.05); opacity: .95 } }
+    .cloudFloat { animation: cloudFloat 18s ease-in-out infinite; }
+    @keyframes cloudFloat { 0%,100% { transform: translateX(0) } 50% { transform: translateX(-18px) } }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden bg-black text-slate-100 antialiased">
+  <div class="fixed inset-x-0 top-0 z-20 flex items-center justify-center px-4" style="padding-top: env(safe-area-inset-top);">
+    <h1 class="text-lg font-bold text-black bg-white/70 px-3 py-1 rounded-xl">Beni`s Wetterstation</h1>
+  </div>
 
-  // ============== kleiner Cache (für schnelles Paint) ==============
-  const CACHE_KEY = 'lastValues_multiChannel_v2'; // neue Version wegen Wind
-  const defaultCache = {
-    inTemp: null, inHum: null,
-    outTemp: null, outHum: null,
-    uv: null,
-    windKmh: null,
-    tsInTemp: null, tsInHum: null, tsOutTemp: null, tsOutHum: null, tsUv: null, tsWind: null
-  };
-  const lastValues = Object.assign(
-    {},
-    defaultCache,
-    JSON.parse(localStorage.getItem(CACHE_KEY) || JSON.stringify(defaultCache))
-  );
+  <main class="h-[100svh] w-screen">
+    <svg id="houseScene" viewBox="0 0 900 540" preserveAspectRatio="xMidYMid slice" class="h-full w-full">
+      <defs>
+        <linearGradient id="skyGradDay" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#cfeffd" />
+          <stop offset="100%" stop-color="#eaf6ff" />
+        </linearGradient>
+        <linearGradient id="skyGradNight" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#0b1d3a" />
+          <stop offset="100%" stop-color="#0f2350" />
+        </linearGradient>
+        <linearGradient id="roofGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f472b6" />
+          <stop offset="100%" stop-color="#fb7185" />
+        </linearGradient>
+        <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#f8fafc" />
+          <stop offset="100%" stop-color="#e2e8f0" />
+        </linearGradient>
+        <linearGradient id="panelGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#60a5fa"/>
+          <stop offset="100%" stop-color="#1e3a8a"/>
+        </linearGradient>
+        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="3" stdDeviation="6" flood-opacity="0.18"/>
+        </filter>
+      </defs>
 
-  const statusEl = document.getElementById('status');
-  function setStatus(msg){ if(statusEl) statusEl.textContent = `Status: ${msg}`; }
-  function validNumberLike(v){ if(v===null||v===undefined) return false; if(typeof v==='string' && v.trim()==='') return false; const n=parseFloat(v); return Number.isFinite(n); }
-  function num(x){ const v=parseFloat(x); return Number.isFinite(v)? v : NaN; }
+      <rect id="sky" width="900" height="540" fill="url(#skyGradDay)" />
+      <rect x="0" y="500" width="900" height="40" fill="#bbf7d0"/>
 
-  // ---- Helper: pro Feld letzten Wert holen (egal, wann zuletzt gepostet)
-  async function fetchFieldLast(channelId, apiKey, fieldNo){
-    const url = `https://api.thingspeak.com/channels/${channelId}/fields/${fieldNo}/last.json?api_key=${encodeURIComponent(apiKey)}`;
-    const r = await fetch(url, { cache: 'no-store' });
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
-    const d = await r.json();
-    const value = d[`field${fieldNo}`];
-    const ts = d.created_at;
-    return { value, ts };
-  }
+      <!-- (Deko) -->
+      <g id="windGroup" transform="translate(330,475)" filter="url(#shadow)">
+        <line x1="0" y1="0" x2="0" y2="-90" stroke="#64748b" stroke-width="6"/>
+        <g id="pinwheel" transform="translate(0,-90)">
+          <circle r="6" fill="#64748b"/>
+          <g id="vanes" class="spin">
+            <path d="M0,0 L0,-28 Q12,-22 16,-10 Z" fill="#94a3b8"/>
+            <path d="M0,0 L28,0 Q22,12 10,16 Z" fill="#94a3b8"/>
+            <path d="M0,0 L0,28 Q-12,22 -16,10 Z" fill="#94a3b8"/>
+            <path d="M0,0 L-28,0 Q-22,-12 -10,-16 Z" fill="#94a3b8"/>
+          </g>
+        </g>
+        <text id="windValue" x="-10" y="22" text-anchor="start" font-size="18" font-weight="700" fill="#0f172a">Wind: --</text>
+      </g>
 
-  async function fetchInside(){
-    const { CHANNEL_ID, READ_API_KEY, FIELDS } = CONFIG.INSIDE;
-    const promises = [];
-    if(FIELDS.tempC) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.tempC).then(r => ({ key:'inTemp', tsKey:'tsInTemp', ...r })).catch(()=>null));
-    if(FIELDS.humPct) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.humPct).then(r => ({ key:'inHum', tsKey:'tsInHum', ...r })).catch(()=>null));
-    const results = (await Promise.all(promises)).filter(Boolean);
-    return results;
-  }
+      <!-- Außenwerte -->
+      <g id="outsidePanelLeft" transform="translate(300,165)" filter="url(#shadow)">
+        <g id="windowTempOut" transform="translate(0,0)">
+          <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
+          <text id="tempOutValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">—</text>
+          <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Außen Temp</text>
+        </g>
+        <g id="windowHumOut" transform="translate(0,90)">
+          <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
+          <text id="humOutValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">—</text>
+          <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Außen Feuchte</text>
+        </g>
+      </g>
 
-  async function fetchOutside(){
-    const { CHANNEL_ID, READ_API_KEY, FIELDS } = CONFIG.OUTSIDE;
-    const promises = [];
-    if(FIELDS.tempC)   promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.tempC).then(r   => ({ key:'outTemp', tsKey:'tsOutTemp', ...r })).catch(()=>null));
-    if(FIELDS.humPct)  promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.humPct).then(r  => ({ key:'outHum',  tsKey:'tsOutHum',  ...r })).catch(()=>null));
-    if(FIELDS.uvIndex) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.uvIndex).then(r => ({ key:'uv',      tsKey:'tsUv',     ...r })).catch(()=>null));
-    if(FIELDS.windKmh) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.windKmh).then(r => ({ key:'windKmh', tsKey:'tsWind',   ...r })).catch(()=>null));
-    const results = (await Promise.all(promises)).filter(Boolean);
-    return results;
-  }
+      <!-- Haus & Innenwerte -->
+      <g id="houseGroup" transform="translate(515,310) scale(0.85)" filter="url(#shadow)">
+        <ellipse cx="0" cy="230" rx="140" ry="18" fill="#000" opacity="0.12" />
+        <polygon points="-95,0 0,-100 95,0" fill="url(#roofGrad)" stroke="#f43f5e" stroke-width="2"/>
+        <g id="solar" transform="translate(-76,-6) rotate(-47)">
+          <rect x="0" y="0" width="80" height="28" rx="4" fill="url(#panelGrad)" stroke="#0f172a" stroke-opacity=".25"/>
+          <g opacity=".35" stroke="#93c5fd" stroke-width="1">
+            <line x1="16" y1="4" x2="16" y2="24"/>
+            <line x1="32" y1="4" x2="32" y2="24"/>
+            <line x1="48" y1="4" x2="48" y2="24"/>
+            <line x1="64" y1="4" x2="64" y2="24"/>
+            <line x1="4" y1="10" x2="76" y2="10"/>
+            <line x1="4" y1="18" x2="76" y2="18"/>
+          </g>
+        </g>
+        <rect x="-90" y="0" width="180" height="220" rx="16" ry="16" fill="url(#wallGrad)" stroke="#cbd5e1" stroke-width="2"/>
 
-  function applyValuesFromResults(results){
-    let newestTs = null;
+        <g id="windowTempIn" transform="translate(-84,36)">
+          <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
+          <text id="tempInValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">—</text>
+          <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Innen Temp</text>
+        </g>
+        <g id="windowHumIn" transform="translate(-84,130)">
+          <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
+          <text id="humInValue" x="46" y="44" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">—</text>
+          <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Innen Feuchte</text>
+        </g>
 
-    for(const r of results){
-      if(!r) continue;
-      const { key, tsKey, value, ts } = r;
-      if(validNumberLike(value)){
-        lastValues[key] = value;
-        lastValues[tsKey] = ts || lastValues[tsKey];
-      }
-      if(ts && (!newestTs || new Date(ts) > new Date(newestTs))) newestTs = ts;
-    }
+        <g id="door" transform="translate(26,48)">
+          <rect width="56" height="160" rx="12" ry="12" fill="#f59e0b" stroke="#a16207"/>
+          <circle cx="42" cy="82" r="4" fill="#7c2d12"/>
+        </g>
+      </g>
 
-    // persist
-    localStorage.setItem(CACHE_KEY, JSON.stringify(lastValues));
+      <!-- Sonne mit Strahlen -->
+      <g id="sunGroup" transform="translate(375,100) scale(0.9)" filter="url(#shadow)">
+        <g class="sunPulse">
+          <g class="spin" style="animation-duration:18s;">
+            <line x1="0" y1="-70" x2="0" y2="-90" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="0" y1="70" x2="0" y2="90" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="70" y1="0" x2="90" y2="0" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="-70" y1="0" x2="-90" y2="0" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="50" y1="-50" x2="65" y2="-65" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="-50" y1="-50" x2="-65" y2="-65" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="50" y1="50" x2="65" y2="65" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="-50" y1="50" x2="-65" y2="65" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <line x1="25" y1="-70" x2="30" y2="-90" stroke="#fde68a" stroke-width="3" stroke-linecap="round"/>
+            <line x1="-25" y1="-70" x2="-30" y2="-90" stroke="#fde68a" stroke-width="3" stroke-linecap="round"/>
+            <line x1="25" y1="70" x2="30" y2="90" stroke="#fde68a" stroke-width="3" stroke-linecap="round"/>
+            <line x1="-25" y1="70" x2="-30" y2="90" stroke="#fde68a" stroke-width="3" stroke-linecap="round"/>
+          </g>
+          <circle r="45" fill="#ffd166" stroke="#d97706" stroke-width="2"/>
+          <text id="uvLabel" x="0" y="-2" text-anchor="middle" font-size="14" font-weight="700" fill="#7c4a00">UV-Index</text>
+          <text id="uvValue" x="0" y="20" text-anchor="middle" font-size="22" font-weight="800" fill="#7c4a00">—</text>
+        </g>
+      </g>
 
-    // render
-    const n_inT   = num(lastValues.inTemp);
-    const n_inH   = num(lastValues.inHum);
-    const n_outT  = num(lastValues.outTemp);
-    const n_outH  = num(lastValues.outHum);
-    const n_uv    = num(lastValues.uv);
-    let   n_wind  = num(lastValues.windKmh);
+      <!-- Mond -->
+      <g id="moonGroup" transform="translate(375,100) scale(0.9)" opacity="0">
+        <circle r="36" fill="#f1f5f9"/>
+        <circle r="32" cx="8" cy="-5" fill="#0f2350" />
+      </g>
 
-    // ggf. m/s -> km/h
-    if(Number.isFinite(n_wind) && CONFIG.WIND_IS_MPS){
-      n_wind = n_wind * 3.6;
-    }
+      <!-- Wolke/Platzhalter -->
+      <g id="cloudGroup" transform="translate(500,105) scale(0.9)" filter="url(#shadow)">
+        <g class="cloudFloat">
+          <ellipse rx="58" ry="30" cx="0" cy="10" fill="#ffffff" stroke="#e2e8f0"/>
+          <ellipse rx="45" ry="28" cx="-45" cy="22" fill="#ffffff" stroke="#e2e8f0"/>
+          <ellipse rx="45" ry="28" cx="45" cy="22" fill="#ffffff" stroke="#e2e8f0"/>
+          <text id="rainValue" x="0" y="65" text-anchor="middle" font-size="18" font-weight="600" fill="#334155">Regen: --</text>
+        </g>
+      </g>
 
-    document.getElementById('tempInValue').textContent  = Number.isFinite(n_inT)  ? `${n_inT.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '—';
-    document.getElementById('humInValue').textContent   = Number.isFinite(n_inH)  ? `${n_inH.toFixed(CONFIG.DECIMALS_HUM)} %`  : '—';
-    document.getElementById('tempOutValue').textContent = Number.isFinite(n_outT) ? `${n_outT.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '—';
-    document.getElementById('humOutValue').textContent  = Number.isFinite(n_outH) ? `${n_outH.toFixed(CONFIG.DECIMALS_HUM)} %`  : '—';
-    document.getElementById('uvValue').textContent      = Number.isFinite(n_uv)   ? n_uv.toFixed(1) : '—';
+      <text id="timestamp" x="450" y="520" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: —</text>
+      <text id="status" x="12" y="528" text-anchor="start" font-size="12" fill="#64748b">Status: Initialisierung…</text>
+    </svg>
+  </main>
 
-    // Wind-Anzeige
-    const windText = document.getElementById('windValue');
-    if(windText){
-      windText.textContent = Number.isFinite(n_wind)
-        ? `Wind: ${n_wind.toFixed(CONFIG.DECIMALS_WIND)} km/h`
-        : 'Wind: --';
-    }
-
-    // Windrad-Drehgeschwindigkeit dynamisch anpassen (kürzere Dauer = schneller)
-    const vanes = document.getElementById('vanes');
-    if(vanes){
-      let dur = 1.4; // Default
-      if(Number.isFinite(n_wind)){
-        const w = Math.min(Math.max(n_wind, 0), 120); // clamp 0..120 km/h
-        // 0 km/h ~ 6s (sehr langsam) -> 120 km/h ~ 0.6s (sehr schnell)
-        dur = Math.max(0.6, 6 - (w * 0.045));
-      }
-      vanes.style.animationDuration = `${dur}s`;
-    }
-
-    // Himmel/Sonne/Mond je nach UV
-    const sky  = document.getElementById('sky');
-    const sun  = document.getElementById('sunGroup');
-    const moon = document.getElementById('moonGroup');
-    const isNight = Number.isFinite(n_uv) ? (n_uv <= CONFIG.UV_NIGHT_THRESHOLD) : false;
-    if(isNight){
-      sky.setAttribute('fill','url(#skyGradNight)');
-      if(sun)  sun.setAttribute('opacity','0');
-      if(moon) moon.setAttribute('opacity','1');
-    } else {
-      sky.setAttribute('fill','url(#skyGradDay)');
-      if(sun)  sun.setAttribute('opacity','1');
-      if(moon) moon.setAttribute('opacity','0');
-    }
-
-    // Zeitstempel (neuester der eingegangenen Messwerte)
-    const stamp = newestTs
-      || lastValues.tsUv
-      || lastValues.tsOutTemp
-      || lastValues.tsOutHum
-      || lastValues.tsInTemp
-      || lastValues.tsInHum
-      || lastValues.tsWind;
-    document.getElementById('timestamp').textContent =
-      `Letzte Aktualisierung: ${ stamp ? new Date(stamp).toLocaleString() : '—' }`;
-  }
-
-  // Erstmal Cache zeichnen (falls vorhanden)
-  applyValuesFromResults([]);
-
-  // Bootstrap & Polling
-  (async function bootstrap(){
-    try{
-      setStatus('Hole letzte Innen-/Außenwerte …');
-      const [inRes, outRes] = await Promise.all([fetchInside(), fetchOutside()]);
-      applyValuesFromResults([...inRes, ...outRes]);
-      setStatus('Live');
-    }catch(e){
-      console.warn('Initial fetch failed:', e);
-      setStatus('Fehler beim Laden – zeige Cache (falls vorhanden)');
-    }
-
-    // Poll-Schleife (mit einfachem Backoff bei Fehlern)
-    let delay = CONFIG.POLL_MS;
-    async function tick(){
+  <script>
+    (function(){
       try{
-        const [inRes, outRes] = await Promise.all([fetchInside(), fetchOutside()]);
-        applyValuesFromResults([...inRes, ...outRes]);
-        setStatus('Live');
-        delay = CONFIG.POLL_MS;
-      }catch(err){
-        console.warn('Poll error:', err);
-        setStatus('Verbindungsproblem – neuer Versuch');
-        delay = Math.min(delay * 2, 300000); // max 5 min
-      }finally{
-        setTimeout(tick, delay);
+        // ===================== CONFIG =====================
+        const CONFIG = {
+          INSIDE: {
+            CHANNEL_ID: "3043993",
+            READ_API_KEY: "5QKSO8HZ6BNPFTDE",
+            FIELDS: { tempC: 1, humPct: 2 }
+          },
+          OUTSIDE: {
+            CHANNEL_ID: "3043993",
+            READ_API_KEY: "5QKSO8HZ6BNPFTDE",
+            FIELDS: { tempC: 3, humPct: 4, uvIndex: 5, windKmh: 6 } // Field 6: Wind
+          },
+          UV_NIGHT_THRESHOLD: 0.1,
+          DECIMALS_TEMP: 1,
+          DECIMALS_HUM: 0,
+          DECIMALS_WIND: 1,
+          WIND_IS_MPS: false,  // true = Field 6 in m/s -> wird zu km/h umgerechnet
+          POLL_MS: 60000
+        };
+
+        // ============== Cache ==============
+        const CACHE_KEY = 'lastValues_multiChannel_v2';
+        const defaultCache = {
+          inTemp: null, inHum: null,
+          outTemp: null, outHum: null,
+          uv: null,
+          windKmh: null,
+          tsInTemp: null, tsInHum: null, tsOutTemp: null, tsOutHum: null, tsUv: null, tsWind: null
+        };
+        const lastValues = Object.assign({}, defaultCache,
+          JSON.parse(localStorage.getItem(CACHE_KEY) || JSON.stringify(defaultCache))
+        );
+
+        const statusEl = document.getElementById('status');
+        function setStatus(msg){ if(statusEl) statusEl.textContent = `Status: ${msg}`; }
+        function validNumberLike(v){ if(v===null||v===undefined) return false; if(typeof v==='string' && v.trim()==='') return false; const n=parseFloat(v); return Number.isFinite(n); }
+        function num(x){ const v=parseFloat(x); return Number.isFinite(v)? v : NaN; }
+
+        // ---- Helper: pro Feld letzten Wert holen
+        async function fetchFieldLast(channelId, apiKey, fieldNo){
+          const url = `https://api.thingspeak.com/channels/${channelId}/fields/${fieldNo}/last.json?api_key=${encodeURIComponent(apiKey)}`;
+          const r = await fetch(url, { cache: 'no-store' });
+          if(!r.ok) throw new Error(`HTTP ${r.status}`);
+          const d = await r.json();
+          const value = d[`field${fieldNo}`];
+          const ts = d.created_at;
+          return { value, ts };
+        }
+
+        async function fetchInside(){
+          const { CHANNEL_ID, READ_API_KEY, FIELDS } = CONFIG.INSIDE;
+          const promises = [];
+          if(FIELDS.tempC) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.tempC).then(r => ({ key:'inTemp', tsKey:'tsInTemp', ...r })).catch(()=>null));
+          if(FIELDS.humPct) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.humPct).then(r => ({ key:'inHum', tsKey:'tsInHum', ...r })).catch(()=>null));
+          return (await Promise.all(promises)).filter(Boolean);
+        }
+
+        async function fetchOutside(){
+          const { CHANNEL_ID, READ_API_KEY, FIELDS } = CONFIG.OUTSIDE;
+          const promises = [];
+          if(FIELDS.tempC)   promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.tempC).then(r   => ({ key:'outTemp', tsKey:'tsOutTemp', ...r })).catch(()=>null));
+          if(FIELDS.humPct)  promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.humPct).then(r  => ({ key:'outHum',  tsKey:'tsOutHum',  ...r })).catch(()=>null));
+          if(FIELDS.uvIndex) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.uvIndex).then(r => ({ key:'uv',      tsKey:'tsUv',     ...r })).catch(()=>null));
+          if(FIELDS.windKmh) promises.push(fetchFieldLast(CHANNEL_ID, READ_API_KEY, FIELDS.windKmh).then(r => ({ key:'windKmh', tsKey:'tsWind',   ...r })).catch(()=>null));
+          return (await Promise.all(promises)).filter(Boolean);
+        }
+
+        function applyValuesFromResults(results){
+          let newestTs = null;
+
+          for(const r of results){
+            if(!r) continue;
+            const { key, tsKey, value, ts } = r;
+            if(validNumberLike(value)){
+              lastValues[key] = value;
+              lastValues[tsKey] = ts || lastValues[tsKey];
+            }
+            if(ts && (!newestTs || new Date(ts) > new Date(newestTs))) newestTs = ts;
+          }
+
+          // persist
+          localStorage.setItem(CACHE_KEY, JSON.stringify(lastValues));
+
+          // render numbers
+          const n_inT   = num(lastValues.inTemp);
+          const n_inH   = num(lastValues.inHum);
+          const n_outT  = num(lastValues.outTemp);
+          const n_outH  = num(lastValues.outHum);
+          const n_uv    = num(lastValues.uv);
+          let   n_wind  = num(lastValues.windKmh);
+
+          if(Number.isFinite(n_wind) && CONFIG.WIND_IS_MPS){
+            n_wind = n_wind * 3.6; // m/s -> km/h
+          }
+
+          const tempInValue  = document.getElementById('tempInValue');
+          const humInValue   = document.getElementById('humInValue');
+          const tempOutValue = document.getElementById('tempOutValue');
+          const humOutValue  = document.getElementById('humOutValue');
+          const uvValue      = document.getElementById('uvValue');
+          const windText     = document.getElementById('windValue');
+
+          if(tempInValue)  tempInValue.textContent  = Number.isFinite(n_inT)  ? `${n_inT.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '—';
+          if(humInValue)   humInValue.textContent   = Number.isFinite(n_inH)  ? `${n_inH.toFixed(CONFIG.DECIMALS_HUM)} %`  : '—';
+          if(tempOutValue) tempOutValue.textContent = Number.isFinite(n_outT) ? `${n_outT.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '—';
+          if(humOutValue)  humOutValue.textContent  = Number.isFinite(n_outH) ? `${n_outH.toFixed(CONFIG.DECIMALS_HUM)} %`  : '—';
+          if(uvValue)      uvValue.textContent      = Number.isFinite(n_uv)   ? n_uv.toFixed(1) : '—';
+          if(windText)     windText.textContent     = Number.isFinite(n_wind) ? `Wind: ${n_wind.toFixed(CONFIG.DECIMALS_WIND)} km/h` : 'Wind: --';
+
+          // Windrad-Geschwindigkeit
+          const vanes = document.getElementById('vanes');
+          if(vanes){
+            let dur = 1.4; // Default
+            if(Number.isFinite(n_wind)){
+              const w = Math.min(Math.max(n_wind, 0), 120);
+              dur = Math.max(0.6, 6 - (w * 0.045)); // 0 km/h ~6s -> 120 km/h ~0.6s
+            }
+            vanes.style.animationDuration = `${dur}s`;
+          }
+
+          // Himmel: Tag/Nacht
+          const sky  = document.getElementById('sky');
+          const sun  = document.getElementById('sunGroup');
+          const moon = document.getElementById('moonGroup');
+          const isNight = Number.isFinite(n_uv) ? (n_uv <= CONFIG.UV_NIGHT_THRESHOLD) : false;
+          if(sky){
+            sky.setAttribute('fill', isNight ? 'url(#skyGradNight)' : 'url(#skyGradDay)');
+          }
+          if(sun)  sun.setAttribute('opacity', isNight ? '0' : '1');
+          if(moon) moon.setAttribute('opacity', isNight ? '1' : '0');
+
+          // Zeitstempel
+          const stamp = newestTs
+            || lastValues.tsUv
+            || lastValues.tsOutTemp
+            || lastValues.tsOutHum
+            || lastValues.tsInTemp
+            || lastValues.tsInHum
+            || lastValues.tsWind;
+          const tsEl = document.getElementById('timestamp');
+          if(tsEl) tsEl.textContent = `Letzte Aktualisierung: ${ stamp ? new Date(stamp).toLocaleString() : '—' }`;
+        }
+
+        // Erstmal Cache zeichnen (falls vorhanden)
+        applyValuesFromResults([]);
+
+        // Bootstrap & Polling
+        (async function bootstrap(){
+          try{
+            setStatus('Hole letzte Innen-/Außenwerte …');
+            const [inRes, outRes] = await Promise.all([fetchInside(), fetchOutside()]);
+            applyValuesFromResults([...inRes, ...outRes]);
+            setStatus('Live');
+          }catch(e){
+            console.warn('Initial fetch failed:', e);
+            setStatus('Fehler beim Laden – zeige Cache (falls vorhanden)');
+          }
+
+          let delay = CONFIG.POLL_MS;
+          async function tick(){
+            try{
+              const [inRes, outRes] = await Promise.all([fetchInside(), fetchOutside()]);
+              applyValuesFromResults([...inRes, ...outRes]);
+              setStatus('Live');
+              delay = CONFIG.POLL_MS;
+            }catch(err){
+              console.warn('Poll error:', err);
+              setStatus('Verbindungsproblem – neuer Versuch');
+              delay = Math.min(delay * 2, 300000); // max 5 min
+            }finally{
+              setTimeout(tick, delay);
+            }
+          }
+          setTimeout(tick, delay);
+        })();
+
+      }catch(errTop){
+        console.error('Top-level error:', errTop);
+        const statusEl = document.getElementById('status');
+        if(statusEl) statusEl.textContent = `Status: Fehler – ${errTop.message}`;
       }
-    }
-    setTimeout(tick, delay);
-  })();
-</script>
+    })();
+  </script>
+</body>
+</html>
