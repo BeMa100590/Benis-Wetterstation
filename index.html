@@ -128,7 +128,7 @@
         <circle r="32" cx="8" cy="-5" fill="#0f2350" />
       </g>
 
-      <!-- Wolke/Platzhalter -->
+      <!-- Wolke -->
       <g id="cloudGroup" transform="translate(500,105) scale(0.9)" filter="url(#shadow)">
         <g class="cloudFloat">
           <ellipse rx="58" ry="30" cx="0" cy="10" fill="#ffffff" stroke="#e2e8f0"/>
@@ -138,13 +138,14 @@
         </g>
       </g>
 
-      <!-- Windrad + Wind-Fenster (unter Außenwerten, Wert über dem grünen Balken) -->
-      <!-- outsidePanelLeft: x=300, Fensterbreite 92 -> Mitte ≈ 346 -->
-      <g id="windBlock" transform="translate(346,390)" filter="url(#shadow)">
-        <!-- Mast (gekürzt) -->
-        <line x1="0" y1="0" x2="0" y2="-70" stroke="#64748b" stroke-width="6"/>
-        <!-- Rotor -->
-        <g id="pinwheel" transform="translate(0,-70)">
+      <!-- Windrad + Wind-Fenster (auf Haus-Höhe, knapp über Grün; Mast halbiert) -->
+      <!-- außen-Kacheln beginnen bei x=300; Mitte ≈ 346 -->
+      <!-- y=408 + 0..80 => Unterkante der Kachel bei 488 < 500 (grüner Balken) -->
+      <g id="windBlock" transform="translate(346,408)" filter="url(#shadow)">
+        <!-- Mast (35 px = halb so lang wie zuvor) -->
+        <line x1="0" y1="0" x2="0" y2="-35" stroke="#64748b" stroke-width="6"/>
+        <!-- Rotor passend zum gekürzten Mast -->
+        <g id="pinwheel" transform="translate(0,-35)">
           <circle r="6" fill="#64748b"/>
           <g id="vanes" class="spin">
             <path d="M0,0 L0,-28 Q12,-22 16,-10 Z" fill="#94a3b8"/>
@@ -153,8 +154,8 @@
             <path d="M0,0 L-28,0 Q-22,-12 -10,-16 Z" fill="#94a3b8"/>
           </g>
         </g>
-        <!-- Windwert-Fenster (liegt bei y=390+8..+80 -> endet bei 478 < 500) -->
-        <g id="windowWind" transform="translate(-46,8)">
+        <!-- Windwert-Kachel (gleiche Optik wie die anderen, über dem grünen Balken) -->
+        <g id="windowWind" transform="translate(-46,0)">
           <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
           <text id="windValueText" x="46" y="44" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">—</text>
           <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Wind</text>
