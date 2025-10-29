@@ -51,8 +51,9 @@
       <rect id="sky" width="900" height="540" fill="url(#skyGradDay)" />
       <rect x="0" y="500" width="900" height="40" fill="#bbf7d0"/>
 
-      <!-- (Deko) -->
-      <g id="windGroup" transform="translate(330,475)" filter="url(#shadow)">
+      <!-- (Deko / Windrad + Fenster) -->
+      <!-- Eine Position nach links (330 -> 240), Wert-Schrift 18 -> 17, Anzeige in Fenster -->
+      <g id="windGroup" transform="translate(240,475)" filter="url(#shadow)">
         <line x1="0" y1="0" x2="0" y2="-90" stroke="#64748b" stroke-width="6"/>
         <g id="pinwheel" transform="translate(0,-90)">
           <circle r="6" fill="#64748b"/>
@@ -63,7 +64,12 @@
             <path d="M0,0 L-28,0 Q-22,-12 -10,-16 Z" fill="#94a3b8"/>
           </g>
         </g>
-        <text id="windValue" x="-10" y="22" text-anchor="start" font-size="18" font-weight="700" fill="#0f172a">Wind: --</text>
+        <!-- Neues Fenster für Windanzeige -->
+        <g id="windowWind" transform="translate(-46,10)">
+          <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
+          <text id="windValue" x="46" y="44" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">—</text>
+          <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Wind</text>
+        </g>
       </g>
 
       <!-- Außenwerte -->
@@ -268,7 +274,8 @@
           if(tempOutValue) tempOutValue.textContent = Number.isFinite(n_outT) ? `${n_outT.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '—';
           if(humOutValue)  humOutValue.textContent  = Number.isFinite(n_outH) ? `${n_outH.toFixed(CONFIG.DECIMALS_HUM)} %`  : '—';
           if(uvValue)      uvValue.textContent      = Number.isFinite(n_uv)   ? n_uv.toFixed(1) : '—';
-          if(windText)     windText.textContent     = Number.isFinite(n_wind) ? `Wind: ${n_wind.toFixed(CONFIG.DECIMALS_WIND)} km/h` : 'Wind: --';
+          // Wert ohne "Wind:" davor, Default '—'
+          if(windText)     windText.textContent     = Number.isFinite(n_wind) ? `${n_wind.toFixed(CONFIG.DECIMALS_WIND)} km/h` : '—';
 
           // Windrad-Geschwindigkeit
           const vanes = document.getElementById('vanes');
