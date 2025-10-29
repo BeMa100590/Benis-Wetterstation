@@ -138,8 +138,12 @@
         </g>
       </g>
 
-      <!-- Windrad + Wind-Fenster (ganz vorne, damit nichts überdeckt) -->
-      <g id="windGroup" transform="translate(240,472)" filter="url(#shadow)">
+      <!-- Zeitinfos -->
+      <text id="timestamp" x="450" y="520" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: —</text>
+      <text id="status" x="12" y="528" text-anchor="start" font-size="12" fill="#64748b">Status: Initialisierung…</text>
+
+      <!-- Windrad + Wind-Fenster (ganz vorne, eindeutige IDs) -->
+      <g id="windBlock" transform="translate(240,472)" filter="url(#shadow)">
         <!-- Mast -->
         <line x1="0" y1="0" x2="0" y2="-90" stroke="#64748b" stroke-width="6"/>
         <!-- Rotor -->
@@ -155,13 +159,10 @@
         <!-- Fenster für Windanzeige -->
         <g id="windowWind" transform="translate(-46,12)">
           <rect width="92" height="80" rx="14" ry="14" fill="#ffffff" stroke="#cbd5e1"/>
-          <text id="windValue" x="46" y="44" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">—</text>
+          <text id="windValueText" x="46" y="44" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">—</text>
           <text x="46" y="64" text-anchor="middle" font-size="12" fill="#475569">Wind</text>
         </g>
       </g>
-
-      <text id="timestamp" x="450" y="520" text-anchor="middle" font-size="14" fill="#334155">Letzte Aktualisierung: —</text>
-      <text id="status" x="12" y="528" text-anchor="start" font-size="12" fill="#64748b">Status: Initialisierung…</text>
     </svg>
   </main>
 
@@ -268,7 +269,7 @@
           const tempOutValue = document.getElementById('tempOutValue');
           const humOutValue  = document.getElementById('humOutValue');
           const uvValue      = document.getElementById('uvValue');
-          const windText     = document.getElementById('windValue');
+          const windText     = document.getElementById('windValueText'); // <- eindeutige ID
 
           if(tempInValue)  tempInValue.textContent  = Number.isFinite(n_inT)  ? `${n_inT.toFixed(CONFIG.DECIMALS_TEMP)} °C` : '—';
           if(humInValue)   humInValue.textContent   = Number.isFinite(n_inH)  ? `${n_inH.toFixed(CONFIG.DECIMALS_HUM)} %`  : '—';
